@@ -1,6 +1,7 @@
 dialog:
   ok: ok
   cancel: cancel
+  do: what are you doing {{ name }}?
   hehe:
     a: 1
     b: 2

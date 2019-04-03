@@ -1,5 +1,22 @@
 export type YamlNode = string | number | { [v: string]: YamlNode }
 
+export enum ArgKind {
+  literal = "literal",
+  param = "param"
+}
+
+export interface LiteralArg {
+  kind: ArgKind.literal
+  value: string
+}
+
+export interface ParamArg {
+  kind: ArgKind.param
+  name: string
+}
+
+export type ArgType = LiteralArg | ParamArg
+
 export enum TypeNodeKind {
   string,
   call,
@@ -14,7 +31,7 @@ export interface StringTypeNode {
 export interface CallTypeNode {
   kind: TypeNodeKind.call
   raw: string,
-  args: string[]
+  body: ArgType[]
 }
 
 export interface RecordTypeNode {

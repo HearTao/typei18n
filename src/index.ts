@@ -3,8 +3,45 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as ts from 'typescript'
 
-import { YamlNode, TypeNodeKind, RecordTypeNode, TypeNode } from './types'
-import { isStringType, isCallType, arrayEq, isRecordType } from './utils';
+import { YamlNode, TypeNodeKind, RecordTypeNode, ArgType, ArgKind } from './types'
+import { isStringType, isCallType, arrayEq, isRecordType, isParamArgType } from './utils';
+
+const callRegex = /{{\s([a-zA-Z0-9]*)\s}}/g
+
+function matchCallBody(reg: RegExp, str: string): ArgType[] | null {
+  let result: ArgType[] = []
+  let match: RegExpExecArray | null = null
+  let lastIndex = 0
+
+  do {
+    if (match) {
+      const [full, text] = match
+      const idx = match.index
+      if (idx > lastIndex) {
+        result.push({
+          kind: ArgKind.literal,
+          value: str.substring(lastIndex, idx)
+        })
+      }
+      result.push({
+        kind: ArgKind.param,
+        name: text
+      })
+      lastIndex = idx + full.length
+    }
+
+    match = reg.exec(str)
+  } while (match)
+
+  if (result.length) {
+    result.push({
+      kind: ArgKind.literal,
+      value: str.substring(lastIndex)
+    })
+    return result
+  }
+  return null
+}
 
 function toTypeNode(node: YamlNode, errors: string[]): RecordTypeNode {
   const record: RecordTypeNode = {
@@ -17,9 +54,18 @@ function toTypeNode(node: YamlNode, errors: string[]): RecordTypeNode {
       case 'number':
         value = value.toString()
       case 'string':
-        record.value[key] = {
-          kind: TypeNodeKind.string,
-          raw: value
+        const args = matchCallBody(callRegex, value)
+        if (!args) {
+          record.value[key] = {
+            kind: TypeNodeKind.string,
+            raw: value
+          }
+        } else {
+          record.value[key] = {
+            kind: TypeNodeKind.call,
+            raw: value,
+            body: args
+          }
         }
         break
       case 'object':
@@ -68,8 +114,8 @@ function merge(target: RecordTypeNode, source: RecordTypeNode, errors: string[])
     if (isStringType(targetValue) && isStringType(value)) {
 
     } else if (isCallType(targetValue) && isCallType(value)) {
-      if (!arrayEq(targetValue.args, value.args)) {
-        errors.push(`unexpected args: (${key}) has different args: [${targetValue.args}, ${value.args}]`)
+      if (!arrayEq(targetValue.body.filter(isParamArgType), value.body.filter(isParamArgType), x => x.name)) {
+        errors.push(`unexpected args: (${key}) has different args: [${targetValue.body}, ${value.body}]`)
         return
       }
     } else if (isRecordType(targetValue) && isRecordType(value)) {
@@ -100,11 +146,11 @@ function genRecordType(merged: RecordTypeNode): ts.TypeLiteralNode {
           undefined,
           ts.createFunctionTypeNode(
             undefined,
-            value.args.map(arg => ts.createParameter(
+            value.body.filter(isParamArgType).sort().map(arg => ts.createParameter(
               undefined,
               undefined,
               undefined,
-              arg,
+              arg.name,
               undefined,
               ts.createUnionTypeNode([
                 ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
@@ -138,6 +184,38 @@ function genAlias(name: string, type: ts.TypeNode) {
   )
 }
 
+function genFuncCall(body: ArgType[]): ts.ArrowFunction {
+  return ts.createArrowFunction(
+    undefined,
+    undefined,
+    body.filter(isParamArgType).sort().map(x => ts.createParameter(
+      undefined,
+      undefined,
+      undefined,
+      x.name,
+      undefined,
+      ts.createUnionTypeNode([
+        ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+        ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword),
+      ]),
+      undefined
+      
+    )),
+    undefined,
+    undefined,
+    ts.createCall(
+      ts.createPropertyAccess(
+        ts.createArrayLiteral(
+          body.map(x => isParamArgType(x) ? ts.createIdentifier(x.name) : ts.createStringLiteral(x.value)), false
+        ),
+        ts.createIdentifier('join')
+      ),
+      undefined,
+      [ts.createStringLiteral('')]
+    )
+  )
+}
+
 function genRecordLiteral(node: RecordTypeNode): ts.ObjectLiteralExpression {
   return ts.createObjectLiteral(Object.entries(node.value).map(([key, value]) => {
     switch (value.kind) {
@@ -145,6 +223,8 @@ function genRecordLiteral(node: RecordTypeNode): ts.ObjectLiteralExpression {
         return ts.createPropertyAssignment(key, ts.createLiteral(value.raw))
       case TypeNodeKind.record:
         return ts.createPropertyAssignment(key, genRecordLiteral(value))
+      case TypeNodeKind.call:
+        return ts.createPropertyAssignment(key, genFuncCall(value.body))
       default:
         throw new Error('unknown')
     }

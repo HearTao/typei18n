@@ -1,6 +1,7 @@
 dialog:
   ok: 确定
   cancel: 取消
+  do: 你在干啥 {{ name }}?
   hehe:
     a: 1
     b: 2
