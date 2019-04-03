@@ -1,8 +1,8 @@
 export type YamlNode = string | number | { [v: string]: YamlNode }
 
 export enum ArgKind {
-  literal = "literal",
-  param = "param"
+  literal = 'literal',
+  param = 'param'
 }
 
 export interface LiteralArg {
@@ -30,7 +30,7 @@ export interface StringTypeNode {
 
 export interface CallTypeNode {
   kind: TypeNodeKind.call
-  raw: string,
+  raw: string
   body: ArgType[]
 }
 

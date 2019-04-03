@@ -1,4 +1,13 @@
-import { TypeNode, StringTypeNode, TypeNodeKind, CallTypeNode, RecordTypeNode, ArgType, ParamArg, ArgKind } from "./types";
+import {
+  TypeNode,
+  StringTypeNode,
+  TypeNodeKind,
+  CallTypeNode,
+  RecordTypeNode,
+  ArgType,
+  ParamArg,
+  ArgKind
+} from './types'
 
 export function isStringType(v: TypeNode): v is StringTypeNode {
   return v.kind === TypeNodeKind.string

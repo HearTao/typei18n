@@ -3,8 +3,20 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as ts from 'typescript'
 
-import { YamlNode, TypeNodeKind, RecordTypeNode, ArgType, ArgKind } from './types'
-import { isStringType, isCallType, arrayEq, isRecordType, isParamArgType } from './utils';
+import {
+  YamlNode,
+  TypeNodeKind,
+  RecordTypeNode,
+  ArgType,
+  ArgKind
+} from './types'
+import {
+  isStringType,
+  isCallType,
+  arrayEq,
+  isRecordType,
+  isParamArgType
+} from './utils'
 
 const callRegex = /{{\s([a-zA-Z0-9]*)\s}}/g
 
@@ -89,8 +101,15 @@ function transform(v: YamlNode): RecordTypeNode {
   return node
 }
 
-function merge(target: RecordTypeNode, source: RecordTypeNode, errors: string[]): RecordTypeNode {
-  if (target.kind !== TypeNodeKind.record || source.kind !== TypeNodeKind.record) {
+function merge(
+  target: RecordTypeNode,
+  source: RecordTypeNode,
+  errors: string[]
+): RecordTypeNode {
+  if (
+    target.kind !== TypeNodeKind.record ||
+    source.kind !== TypeNodeKind.record
+  ) {
     throw new Error('type node must be Record')
   }
   Object.entries(target.value).forEach(([key, value]) => {
@@ -99,7 +118,9 @@ function merge(target: RecordTypeNode, source: RecordTypeNode, errors: string[])
       return
     }
     if (source.value[key].kind !== value.kind) {
-      errors.push(`unexpected type: (${key})[${target.value[key].kind}, ${value.kind}]`)
+      errors.push(
+        `unexpected type: (${key})[${target.value[key].kind}, ${value.kind}]`
+      )
       return
     }
   })
@@ -112,16 +133,27 @@ function merge(target: RecordTypeNode, source: RecordTypeNode, errors: string[])
 
     const targetValue = target.value[key]
     if (isStringType(targetValue) && isStringType(value)) {
-
     } else if (isCallType(targetValue) && isCallType(value)) {
-      if (!arrayEq(targetValue.body.filter(isParamArgType), value.body.filter(isParamArgType), x => x.name)) {
-        errors.push(`unexpected args: (${key}) has different args: [${targetValue.body}, ${value.body}]`)
+      if (
+        !arrayEq(
+          targetValue.body.filter(isParamArgType),
+          value.body.filter(isParamArgType),
+          x => x.name
+        )
+      ) {
+        errors.push(
+          `unexpected args: (${key}) has different args: [${
+            targetValue.body
+          }, ${value.body}]`
+        )
         return
       }
     } else if (isRecordType(targetValue) && isRecordType(value)) {
       merge(targetValue, value, errors)
     } else {
-      errors.push(`unexpected type: (${key})[${target.value[key].kind}, ${value.kind}]`)
+      errors.push(
+        `unexpected type: (${key})[${target.value[key].kind}, ${value.kind}]`
+      )
       return
     }
   })
@@ -129,49 +161,56 @@ function merge(target: RecordTypeNode, source: RecordTypeNode, errors: string[])
 }
 
 function genRecordType(merged: RecordTypeNode): ts.TypeLiteralNode {
-  return ts.createTypeLiteralNode(Object.entries(merged.value).map(([key, value]) => {
-    switch (value.kind) {
-      case TypeNodeKind.string:
-        return ts.createPropertySignature(
-          undefined,
-          key,
-          undefined,
-          ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-          undefined
-        )
-      case TypeNodeKind.call:
-        return ts.createPropertySignature(
-          undefined,
-          key,
-          undefined,
-          ts.createFunctionTypeNode(
+  return ts.createTypeLiteralNode(
+    Object.entries(merged.value).map(([key, value]) => {
+      switch (value.kind) {
+        case TypeNodeKind.string:
+          return ts.createPropertySignature(
             undefined,
-            value.body.filter(isParamArgType).sort().map(arg => ts.createParameter(
-              undefined,
-              undefined,
-              undefined,
-              arg.name,
-              undefined,
-              ts.createUnionTypeNode([
-                ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-                ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword),
-              ]),
-              undefined
-            )),
+            key,
+            undefined,
             ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-          ),
-          undefined
-        )
-      case TypeNodeKind.record:
-        return ts.createPropertySignature(
-          undefined,
-          key,
-          undefined,
-          genRecordType(value),
-          undefined
-        )
-    }
-  }))
+            undefined
+          )
+        case TypeNodeKind.call:
+          return ts.createPropertySignature(
+            undefined,
+            key,
+            undefined,
+            ts.createFunctionTypeNode(
+              undefined,
+              value.body
+                .filter(isParamArgType)
+                .sort()
+                .map(arg =>
+                  ts.createParameter(
+                    undefined,
+                    undefined,
+                    undefined,
+                    arg.name,
+                    undefined,
+                    ts.createUnionTypeNode([
+                      ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+                      ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword)
+                    ]),
+                    undefined
+                  )
+                ),
+              ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
+            ),
+            undefined
+          )
+        case TypeNodeKind.record:
+          return ts.createPropertySignature(
+            undefined,
+            key,
+            undefined,
+            genRecordType(value),
+            undefined
+          )
+      }
+    })
+  )
 }
 
 function genAlias(name: string, type: ts.TypeNode) {
@@ -188,25 +227,34 @@ function genFuncCall(body: ArgType[]): ts.ArrowFunction {
   return ts.createArrowFunction(
     undefined,
     undefined,
-    body.filter(isParamArgType).sort().map(x => ts.createParameter(
-      undefined,
-      undefined,
-      undefined,
-      x.name,
-      undefined,
-      ts.createUnionTypeNode([
-        ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-        ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword),
-      ]),
-      undefined
-      
-    )),
+    body
+      .filter(isParamArgType)
+      .sort()
+      .map(x =>
+        ts.createParameter(
+          undefined,
+          undefined,
+          undefined,
+          x.name,
+          undefined,
+          ts.createUnionTypeNode([
+            ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+            ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword)
+          ]),
+          undefined
+        )
+      ),
     undefined,
     undefined,
     ts.createCall(
       ts.createPropertyAccess(
         ts.createArrayLiteral(
-          body.map(x => isParamArgType(x) ? ts.createIdentifier(x.name) : ts.createStringLiteral(x.value)), false
+          body.map(x =>
+            isParamArgType(x)
+              ? ts.createIdentifier(x.name)
+              : ts.createStringLiteral(x.value)
+          ),
+          false
         ),
         ts.createIdentifier('join')
       ),
@@ -217,48 +265,83 @@ function genFuncCall(body: ArgType[]): ts.ArrowFunction {
 }
 
 function genRecordLiteral(node: RecordTypeNode): ts.ObjectLiteralExpression {
-  return ts.createObjectLiteral(Object.entries(node.value).map(([key, value]) => {
-    switch (value.kind) {
-      case TypeNodeKind.string:
-        return ts.createPropertyAssignment(key, ts.createLiteral(value.raw))
-      case TypeNodeKind.record:
-        return ts.createPropertyAssignment(key, genRecordLiteral(value))
-      case TypeNodeKind.call:
-        return ts.createPropertyAssignment(key, genFuncCall(value.body))
-      default:
-        throw new Error('unknown')
-    }
-  }), true)
+  return ts.createObjectLiteral(
+    Object.entries(node.value).map(([key, value]) => {
+      switch (value.kind) {
+        case TypeNodeKind.string:
+          return ts.createPropertyAssignment(key, ts.createLiteral(value.raw))
+        case TypeNodeKind.record:
+          return ts.createPropertyAssignment(key, genRecordLiteral(value))
+        case TypeNodeKind.call:
+          return ts.createPropertyAssignment(key, genFuncCall(value.body))
+        default:
+          throw new Error('unknown')
+      }
+    }),
+    true
+  )
 }
 
-function genExportDefault(type: ts.Identifier, typeNodes: ReadonlyArray<[string, RecordTypeNode]>): ts.ExportAssignment {
+function genExportDefault(
+  type: ts.Identifier,
+  typeNodes: ReadonlyArray<[string, RecordTypeNode]>
+): ts.ExportAssignment {
   return ts.createExportAssignment(
     undefined,
     undefined,
     undefined,
     ts.createAsExpression(
       ts.createObjectLiteral(
-        typeNodes.map(([file, node]) => ts.createPropertyAssignment(file, genRecordLiteral(node))),
+        typeNodes.map(([file, node]) =>
+          ts.createPropertyAssignment(file, genRecordLiteral(node))
+        ),
         false
       ),
       ts.createTypeReferenceNode(ts.createIdentifier('Record'), [
-        ts.createUnionTypeNode(typeNodes.map(([file]) => ts.createLiteralTypeNode(ts.createStringLiteral(file)))),
+        ts.createUnionTypeNode(
+          typeNodes.map(([file]) =>
+            ts.createLiteralTypeNode(ts.createStringLiteral(file))
+          )
+        ),
         ts.createTypeReferenceNode(type, undefined)
       ])
     )
   )
 }
 
-function print(typeAlias: ts.TypeAliasDeclaration, exportDefault: ts.ExportAssignment) {
-  return ts.createPrinter().printList(ts.ListFormat.MultiLine, ts.createNodeArray(([typeAlias] as ts.Node[]).concat([exportDefault])), ts.createSourceFile('', '', ts.ScriptTarget.Latest))
+function print(
+  typeAlias: ts.TypeAliasDeclaration,
+  exportDefault: ts.ExportAssignment
+) {
+  return ts
+    .createPrinter()
+    .printList(
+      ts.ListFormat.MultiLine,
+      ts.createNodeArray(([typeAlias] as ts.Node[]).concat([exportDefault])),
+      ts.createSourceFile('', '', ts.ScriptTarget.Latest)
+    )
 }
 
 export function gen(input: string, output: string) {
-  const files = fs.readdirSync(input).filter(x => x.endsWith('.yaml')).map(file => [path.basename(file, '.yaml'), fs.readFileSync(path.join(input, file)).toString()] as const)
+  const files = fs
+    .readdirSync(input)
+    .filter(x => x.endsWith('.yaml'))
+    .map(
+      file =>
+        [
+          path.basename(file, '.yaml'),
+          fs.readFileSync(path.join(input, file)).toString()
+        ] as const
+    )
 
-  const typeNodes = files.map(([f, x]) => [f, yaml.parse(x) as YamlNode]).map(([f, x]) => [f, transform(x)] as [string, RecordTypeNode])
+  const typeNodes = files
+    .map(([f, x]) => [f, yaml.parse(x) as YamlNode])
+    .map(([f, x]) => [f, transform(x)] as [string, RecordTypeNode])
   const errors: string[] = []
-  const merged = typeNodes.reduce((prev, [_, next]) => merge(prev, next, errors), { kind: TypeNodeKind.record, value: {} } as RecordTypeNode)
+  const merged = typeNodes.reduce(
+    (prev, [_, next]) => merge(prev, next, errors),
+    { kind: TypeNodeKind.record, value: {} } as RecordTypeNode
+  )
   if (errors.length) {
     throw new Error(errors.join('\n'))
   }

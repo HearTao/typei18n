@@ -4,7 +4,7 @@
   "description": "yet another i18n solution by codegen",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prettier": "prettier --config ./prettier.json --write ./src/**/*"
   },
   "repository": {
     "type": "git",
@@ -17,10 +17,13 @@
   },
   "homepage": "https://github.com/HearTao/typei18n#readme",
   "dependencies": {
+    "yaml": "^1.4.0"
+  },
+  "devDependencies": {
     "@types/node": "^11.13.0",
-    "@types/yaml": "^1.0.2",
     "ts-node": "^8.0.3",
     "typescript": "^3.4.1",
-    "yaml": "^1.4.0"
+    "@types/yaml": "^1.0.2",
+    "prettier": "^1.16.4"
   }
 }
