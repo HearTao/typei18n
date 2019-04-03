@@ -131,7 +131,7 @@ function genRecordType(merged: RecordTypeNode): ts.TypeLiteralNode {
 function genAlias(name: string, type: ts.TypeNode) {
   return ts.createTypeAliasDeclaration(
     undefined,
-    undefined,
+    [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
     name,
     undefined,
     type
@@ -151,27 +151,32 @@ function genRecordLiteral(node: RecordTypeNode): ts.ObjectLiteralExpression {
   }), true)
 }
 
-function genVarDeclaration(name: string, type: ts.Identifier, value: ts.ObjectLiteralExpression) {
-  return ts.createVariableStatement(
+function genExportDefault(type: ts.Identifier, typeNodes: ReadonlyArray<[string, RecordTypeNode]>): ts.ExportAssignment {
+  return ts.createExportAssignment(
     undefined,
-    ts.createVariableDeclarationList([
-      ts.createVariableDeclaration(
-        name,
-        ts.createTypeReferenceNode(type, undefined),
-        value
-      )
-    ], ts.NodeFlags.Const)
+    undefined,
+    undefined,
+    ts.createAsExpression(
+      ts.createObjectLiteral(
+        typeNodes.map(([file, node]) => ts.createPropertyAssignment(file, genRecordLiteral(node))),
+        false
+      ),
+      ts.createTypeReferenceNode(ts.createIdentifier('Record'), [
+        ts.createUnionTypeNode(typeNodes.map(([file]) => ts.createLiteralTypeNode(ts.createStringLiteral(file)))),
+        ts.createTypeReferenceNode(type, undefined)
+      ])
+    )
   )
 }
 
-function print(typeAlias: ts.TypeAliasDeclaration, vars: ts.VariableStatement[]) {
-  return ts.createPrinter().printList(ts.ListFormat.MultiLine, ts.createNodeArray(([typeAlias] as ts.Node[]).concat(vars)), ts.createSourceFile('', '', ts.ScriptTarget.Latest))
+function print(typeAlias: ts.TypeAliasDeclaration, exportDefault: ts.ExportAssignment) {
+  return ts.createPrinter().printList(ts.ListFormat.MultiLine, ts.createNodeArray(([typeAlias] as ts.Node[]).concat([exportDefault])), ts.createSourceFile('', '', ts.ScriptTarget.Latest))
 }
 
 export function gen(input: string, output: string) {
   const files = fs.readdirSync(input).filter(x => x.endsWith('.yaml')).map(file => [path.basename(file, '.yaml'), fs.readFileSync(path.join(input, file)).toString()] as const)
 
-  const typeNodes = files.map(([f, x]) => [f, yaml.parse(x) as YamlNode] as const).map(([f, x]) => [f, transform(x)] as const)
+  const typeNodes = files.map(([f, x]) => [f, yaml.parse(x) as YamlNode]).map(([f, x]) => [f, transform(x)] as [string, RecordTypeNode])
   const errors: string[] = []
   const merged = typeNodes.reduce((prev, [_, next]) => merge(prev, next, errors), { kind: TypeNodeKind.record, value: {} } as RecordTypeNode)
   if (errors.length) {
@@ -180,9 +185,9 @@ export function gen(input: string, output: string) {
 
   const rootType = 'RootType'
   const typeAlias = genAlias(rootType, genRecordType(merged))
-  const vars = typeNodes.map(([file, node]) => genVarDeclaration(file, typeAlias.name, genRecordLiteral(node)))
+  const exportDefault = genExportDefault(typeAlias.name, typeNodes)
 
-  const code = print(typeAlias, vars)
+  const code = print(typeAlias, exportDefault)
 
   const dir = path.dirname(output)
   if (!fs.existsSync(dir)) {
