@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as ts from 'typescript'
 import * as prettier from 'prettier'
-import prettierConfig from './prettier.json'
+import * as prettierConfig from './prettier.json'
 
 import {
   YamlNode,

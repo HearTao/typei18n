@@ -9,8 +9,7 @@
     "declaration": true,
     "declarationMap": true,
     "rootDir": "./src",
-    "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true
+    "resolveJsonModule": true
   },
   "include": [
     "src/**/*"
