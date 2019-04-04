@@ -17,13 +17,23 @@
   },
   "homepage": "https://github.com/HearTao/typei18n#readme",
   "dependencies": {
-    "yaml": "^1.4.0"
+    "get-stdin": "^6.0.0",
+    "yaml": "^1.4.0",
+    "yargs": "^13.2.2"
   },
   "devDependencies": {
     "@types/node": "^11.13.0",
+    "@types/yaml": "^1.0.2",
+    "@types/get-stdin": "^5.0.1",
+    "@types/yargs": "^12.0.11",
+    "prettier": "^1.16.4",
     "ts-node": "^8.0.3",
     "typescript": "^3.4.1",
-    "@types/yaml": "^1.0.2",
-    "prettier": "^1.16.4"
+    "del": "^4.1.0",
+    "ts-loader": "^5.3.3",
+    "webpack": "^4.29.6",
+    "webpack-merge": "^4.2.1",
+    "webpack-stream": "^5.2.1",
+    "gulp": "^4.0.0",
   }
 }

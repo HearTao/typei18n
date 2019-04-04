@@ -45,7 +45,7 @@ function matchCallBody(reg: RegExp, str: string): ArgType[] | null {
     match = reg.exec(str)
   } while (match)
 
-  if (result.length) {
+  if (result.length && lastIndex < str.length) {
     result.push({
       kind: ArgKind.literal,
       value: str.substring(lastIndex)
@@ -322,18 +322,14 @@ function print(
     )
 }
 
-export function gen(input: string, output: string) {
-  const files = fs
-    .readdirSync(input)
-    .filter(x => x.endsWith('.yaml'))
-    .map(
-      file =>
-        [
-          path.basename(file, '.yaml'),
-          fs.readFileSync(path.join(input, file)).toString()
-        ] as const
-    )
-
+export function gen(filenames: string[]) {
+  const files = filenames.map(
+    file =>
+      [path.basename(file, '.yaml'), fs.readFileSync(file).toString()] as [
+        string,
+        string
+      ]
+  )
   const typeNodes = files
     .map(([f, x]) => [f, yaml.parse(x) as YamlNode])
     .map(([f, x]) => [f, transform(x)] as [string, RecordTypeNode])
@@ -351,10 +347,5 @@ export function gen(input: string, output: string) {
   const exportDefault = genExportDefault(typeAlias.name, typeNodes)
 
   const code = print(typeAlias, exportDefault)
-
-  const dir = path.dirname(output)
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
-  }
-  fs.writeFileSync(output, code)
+  return code
 }
