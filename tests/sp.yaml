@@ -1,7 +1,8 @@
 dialog:
   ok: ok
   cancel: cancel
-  do: what are you doing {{ name }}?
+  what: fucking
+  do: what are you {{ what }} doing {{ name }}?
   hehe:
     a: 1
     b: 2
