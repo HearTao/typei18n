@@ -27,7 +27,7 @@
     "README.md"
   ],
   "bin": {
-    "typei18n": "typei18n"
+    "typei18n": "bin/typei18n"
   },
   "dependencies": {
     "cardinal": "^2.1.1",
