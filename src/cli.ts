@@ -3,11 +3,13 @@ import * as path from 'path'
 import * as yargs from 'yargs'
 import * as getStdin from 'get-stdin'
 import { gen } from './'
+import { highlight } from 'cardinal'
 
 function handler(data?: string) {
   return function handler1(argv: yargs.Arguments): void {
     const input = argv['input'] as string
     const output = argv['output'] as string
+    const color = argv['color'] as boolean
 
     try {
       const files = fs
@@ -17,7 +19,7 @@ function handler(data?: string) {
 
       const result: string = gen(files)
 
-      if (!output) return console.log(result + '\n')
+      if (!output) return console.log(color ? highlight(result) : result + '\n')
 
       const filepath: string = path.resolve(output)
       fs.writeFileSync(filepath, result, 'utf8')
@@ -53,6 +55,11 @@ export default function main(args: string[]) {
         describe: 'Output directory',
         type: 'string',
         requiresArg: true
+      })
+      .option('color', {
+        describe: 'colorful result when print on terminal',
+        type: 'boolean',
+        default: true
       })
 
       .version()
