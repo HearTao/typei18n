@@ -17,7 +17,8 @@ import {
   isCallType,
   arrayEq,
   isRecordType,
-  isParamArgType
+  isParamArgType,
+  first
 } from './utils'
 
 const callRegex = /{{\s([a-zA-Z0-9]*)\s}}/g
@@ -286,14 +287,11 @@ function genRecordLiteral(node: RecordTypeNode): ts.ObjectLiteralExpression {
   )
 }
 
-function genExportDefault(
+function genResource(
   type: ts.Identifier,
   typeNodes: ReadonlyArray<[string, RecordTypeNode]>
-): ts.ExportAssignment {
-  return ts.createExportAssignment(
-    undefined,
-    undefined,
-    undefined,
+) {
+  return ts.createParen(
     ts.createAsExpression(
       ts.createObjectLiteral(
         typeNodes.map(([file, node]) =>
@@ -313,20 +311,143 @@ function genExportDefault(
   )
 }
 
-function print(
-  typeAlias: ts.TypeAliasDeclaration,
-  exportDefault: ts.ExportAssignment
+function genResourceExport(
+  type: ts.Identifier,
+  typeNodes: ReadonlyArray<[string, RecordTypeNode]>
+): ts.ExportAssignment {
+  return ts.createExportAssignment(
+    undefined,
+    undefined,
+    undefined,
+    genResource(type, typeNodes)
+  )
+}
+
+function genProvider() {
+  return ts.createClassDeclaration(
+    undefined,
+    [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
+    ts.createIdentifier('i18nProvider'),
+    [
+      ts.createTypeParameterDeclaration(
+        ts.createIdentifier('K'),
+        ts.createTypeOperatorNode(
+          ts.SyntaxKind.KeyOfKeyword,
+          ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
+        ),
+        undefined
+      ),
+      ts.createTypeParameterDeclaration(
+        ts.createIdentifier('U'),
+        undefined,
+        undefined
+      )
+    ],
+    undefined,
+    [
+      ts.createConstructor(
+        undefined,
+        undefined,
+        [
+          ts.createParameter(
+            undefined,
+            [ts.createModifier(ts.SyntaxKind.PrivateKeyword)],
+            undefined,
+            ts.createIdentifier('maps'),
+            undefined,
+            ts.createTypeReferenceNode(ts.createIdentifier('Record'), [
+              ts.createTypeReferenceNode(ts.createIdentifier('K'), undefined),
+              ts.createTypeReferenceNode(ts.createIdentifier('U'), undefined)
+            ]),
+            undefined
+          ),
+          ts.createParameter(
+            undefined,
+            [ts.createModifier(ts.SyntaxKind.PublicKeyword)],
+            undefined,
+            ts.createIdentifier('lang'),
+            undefined,
+            ts.createTypeReferenceNode(ts.createIdentifier('K'), undefined),
+            undefined
+          )
+        ],
+        ts.createBlock([], true)
+      ),
+      ts.createGetAccessor(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.PublicKeyword)],
+        ts.createIdentifier('t'),
+        [],
+        undefined,
+        ts.createBlock(
+          [
+            ts.createReturn(
+              ts.createElementAccess(
+                ts.createPropertyAccess(
+                  ts.createThis(),
+                  ts.createIdentifier('maps')
+                ),
+                ts.createPropertyAccess(
+                  ts.createThis(),
+                  ts.createIdentifier('lang')
+                )
+              )
+            )
+          ],
+          true
+        )
+      )
+    ]
+  )
+}
+
+function genProviderExport(
+  type: ts.Identifier,
+  typeNodes: ReadonlyArray<[string, RecordTypeNode]>,
+  lang: string
 ) {
+  return [
+    ts.createVariableStatement(
+      undefined,
+      ts.createVariableDeclarationList(
+        [
+          ts.createVariableDeclaration(
+            ts.createIdentifier('provider'),
+            undefined,
+            ts.createNew(ts.createIdentifier('i18nProvider'), undefined, [
+              genResource(type, typeNodes),
+              ts.createStringLiteral(lang)
+            ])
+          )
+        ],
+        ts.NodeFlags.Const
+      )
+    ),
+    ts.createExportAssignment(
+      undefined,
+      undefined,
+      undefined,
+      ts.createIdentifier('provider')
+    )
+  ]
+}
+
+function print(nodes: ts.Node[]) {
   return ts
     .createPrinter()
     .printList(
       ts.ListFormat.MultiLine,
-      ts.createNodeArray(([typeAlias] as ts.Node[]).concat([exportDefault])),
+      ts.createNodeArray(nodes),
       ts.createSourceFile('', '', ts.ScriptTarget.Latest)
     )
 }
 
-export function gen(filenames: string[]) {
+export enum Target {
+  resource = 'resource',
+  provider = 'provider'
+}
+
+export function gen(filenames: string[], target: Target = Target.resource) {
   const files = filenames.map(
     file =>
       [path.basename(file, '.yaml'), fs.readFileSync(file).toString()] as [
@@ -348,10 +469,23 @@ export function gen(filenames: string[]) {
 
   const rootType = 'RootType'
   const typeAlias = genAlias(rootType, genRecordType(merged))
-  const exportDefault = genExportDefault(typeAlias.name, typeNodes)
+
+  let exportDefault: ts.Node[] = []
+
+  switch (target) {
+    case Target.resource:
+      exportDefault = [genResourceExport(typeAlias.name, typeNodes)]
+      break
+    case Target.provider:
+      exportDefault = [
+        genProvider(),
+        ...genProviderExport(typeAlias.name, typeNodes, first(files)[0])
+      ]
+      break
+  }
 
   const code = prettier.format(
-    print(typeAlias, exportDefault),
+    print([typeAlias, ...exportDefault]),
     prettierConfig as prettier.Options
   )
   return code

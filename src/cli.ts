@@ -2,7 +2,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as yargs from 'yargs'
 import * as getStdin from 'get-stdin'
-import { gen } from './'
+import { gen, Target } from './'
 import { highlight } from 'cardinal'
 
 function handler(data?: string) {
@@ -10,6 +10,7 @@ function handler(data?: string) {
     const input = argv['input'] as string
     const output = argv['output'] as string
     const color = argv['color'] as boolean
+    const target = argv['target'] as Target
 
     try {
       const files = fs
@@ -17,7 +18,7 @@ function handler(data?: string) {
         .filter(x => x.endsWith('.yaml'))
         .map(x => path.join(input, x))
 
-      const result: string = gen(files)
+      const result: string = gen(files, target)
 
       if (!output) return console.log(color ? highlight(result) : result + '\n')
 
@@ -60,6 +61,14 @@ export default function main(args: string[]) {
         describe: 'colorful result when print on terminal',
         type: 'boolean',
         default: true
+      })
+
+      .option('t', {
+        alias: 'target',
+        describe: 'Output target',
+        type: 'string',
+        choices: [Target.resource, Target.provider],
+        default: Target.provider
       })
 
       .version()

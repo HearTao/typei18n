@@ -30,3 +30,10 @@ export function arrayEq<T>(a: T[], b: T[], cb: (a: T) => string): boolean {
 export function isParamArgType(v: ArgType): v is ParamArg {
   return v.kind === ArgKind.param
 }
+
+export function first<T>(v: T[]): T {
+  if (!v || !v.length) {
+    throw new Error('index out of range')
+  }
+  return v[0]
+}
