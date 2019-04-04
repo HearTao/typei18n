@@ -4,7 +4,7 @@
   "description": "yet another i18n solution by codegen",
   "main": "index.js",
   "scripts": {
-    "prettier": "prettier --config ./prettier.json --write ./src/* ./src/**/*"
+    "prettier": "prettier --config ./src/prettier.json --write ./src/*.ts ./src/**/*.ts"
   },
   "repository": {
     "type": "git",
@@ -25,6 +25,7 @@
   "devDependencies": {
     "@types/get-stdin": "^5.0.1",
     "@types/node": "^11.13.0",
+    "@types/prettier": "^1.16.1",
     "@types/yaml": "^1.0.2",
     "@types/yargs": "^12.0.11",
     "del": "^4.1.0",
