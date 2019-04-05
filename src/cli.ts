@@ -4,6 +4,7 @@ import * as yargs from 'yargs'
 import * as getStdin from 'get-stdin'
 import { gen, Target } from './'
 import { highlight } from 'cardinal'
+import { watch as chokidar } from 'chokidar'
 
 function handler(data?: string) {
   return function handler1(argv: yargs.Arguments): void {
@@ -11,22 +12,37 @@ function handler(data?: string) {
     const output = argv['output'] as string
     const color = argv['color'] as boolean
     const target = argv['target'] as Target
+    const watch = argv[`watch`] as boolean
 
-    try {
-      const files = fs
-        .readdirSync(input)
-        .filter(x => x.endsWith('.yaml'))
-        .map(x => path.join(input, x))
+    const files = fs
+          .readdirSync(input)
+          .filter(x => x.endsWith('.yaml'))
+          .map(x => path.join(input, x))
 
-      const result: string = gen(files, target)
+    if(watch) {
+      run()
+      console.log(`Waiting for file change\n`)
+      chokidar(`${input}/**/*.yaml`, { ignored: /(^|[\/\\])\../ }).on('change', (file) => {
+        console.log(`${file} changed, processing...`)
+        run()
+        console.log(`Waiting for file change\n`)
+      })
+    } else {
+      run()
+    }
 
-      if (!output) return console.log(color ? highlight(result) : result + '\n')
-
-      const filepath: string = path.resolve(output)
-      fs.writeFileSync(filepath, result, 'utf8')
-      console.log(`Done at ${filepath}`)
-    } catch (e) {
-      throw new Error(e)
+    function run(): void {
+      try {                  
+        const result: string = gen(files, target)
+  
+        if (!output) return console.log(color ? highlight(result) : result + '\n')
+  
+        const filepath: string = path.resolve(output)
+        fs.writeFileSync(filepath, result, 'utf8')
+        console.log(`Done at ${filepath}`)
+      } catch (e) {
+        throw new Error(e)
+      }      
     }
   }
 }
@@ -50,7 +66,6 @@ export default function main(args: string[]) {
           })
         }
       })
-
       .option('o', {
         alias: 'output',
         describe: 'Output directory',
@@ -62,7 +77,6 @@ export default function main(args: string[]) {
         type: 'boolean',
         default: true
       })
-
       .option('t', {
         alias: 'target',
         describe: 'Output target',
@@ -70,7 +84,12 @@ export default function main(args: string[]) {
         choices: [Target.resource, Target.provider],
         default: Target.provider
       })
-
+      .option(`w`, {
+        alias: `watch`,
+        describe: `watch file change`,
+        type: `boolean`,
+        default: false
+      })
       .version()
       .alias('v', 'version')
       .showHelpOnFail(true, 'Specify --help for available options')
