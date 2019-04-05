@@ -6,7 +6,7 @@ import { gen, Target } from './'
 import { highlight } from 'cardinal'
 import { watch as chokidar } from 'chokidar'
 
-function handler(data?: string) {
+function handler(_data?: string) {
   return function handler1(argv: yargs.Arguments): void {
     const input = argv['input'] as string
     const output = argv['output'] as string
@@ -47,6 +47,25 @@ function handler(data?: string) {
   }
 }
 
+function handleInitial(argv: yargs.Arguments): void {
+  const dir = argv['dir'] as string
+  const locales = argv['locales'] as string[]
+  const dirPath: string = path.isAbsolute(dir) ? dir : path.resolve(process.cwd(), dir)
+  fs.mkdirSync(dirPath, { recursive: true })
+  const out: string[] = [`|- ${dir}`]
+  locales.forEach(file => {
+    const filePath: string = path.resolve(dirPath, file + '.yaml')
+    if(fs.existsSync(filePath)) {
+      console.warn(`Skipped, ${filePath} was alread exists`)
+    } else {
+      fs.writeFileSync(path.resolve(dirPath, file + '.yaml'), '', 'utf-8')
+      out.push(`  |- ${file}.yaml`)
+    }
+  })
+
+  console.log('\n', out.join('\n'))
+}
+
 /** @internal */
 export default function main(args: string[]) {
   getStdin().then(data => {
@@ -62,6 +81,24 @@ export default function main(args: string[]) {
           return yargs.positional('input', {
             describe: 'input file path',
             type: 'string',
+            normalize: true
+          })
+        }
+      })
+      .command({
+        command: `init [locales...]`,
+        describe: `initial a local file`,
+        handler: handleInitial,
+        builder: (yargs: yargs.Argv): yargs.Argv => {
+          return yargs.positional('locales', {
+            describe: 'default locales, default "en"',
+            type: 'string'
+          })
+          .options('d', {
+            alias: 'dir',
+            describe: 'Locales directory',
+            type: 'string',
+            default: `locales`,
             normalize: true
           })
         }
@@ -89,7 +126,7 @@ export default function main(args: string[]) {
         describe: `watch file change`,
         type: `boolean`,
         default: false
-      })
+      })      
       .version()
       .alias('v', 'version')
       .showHelpOnFail(true, 'Specify --help for available options')
