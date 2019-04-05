@@ -1,0 +1,11 @@
+dialog:
+  ok: 确定
+  cancel: 取消
+  what: 特么
+  do: 你 {{ what }} 在干啥 {{ name }}?
+  hehe:
+    a: 1
+    b: 2
+    c: 3
+    e: 5
+  test: 233
