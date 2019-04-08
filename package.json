@@ -26,6 +26,7 @@
     "package.json",
     "README.md"
   ],
+  "types": "lib/index.d.ts",
   "bin": {
     "typei18n": "bin/typei18n"
   },
