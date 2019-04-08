@@ -15,34 +15,38 @@ function handler(_data?: string) {
     const watch = argv[`watch`] as boolean
 
     const files = fs
-          .readdirSync(input)
-          .filter(x => x.endsWith('.yaml'))
-          .map(x => path.join(input, x))
+      .readdirSync(input)
+      .filter(x => x.endsWith('.yaml'))
+      .map(x => path.join(input, x))
 
-    if(watch) {
+    if (watch) {
       run()
       console.log(`Waiting for file change\n`)
-      chokidar(`${input}/**/*.yaml`, { ignored: /(^|[\/\\])\../ }).on('change', (file) => {
-        console.log(`${file} changed, processing...`)
-        run()
-        console.log(`Waiting for file change\n`)
-      })
+      chokidar(`${input}/**/*.yaml`, { ignored: /(^|[\/\\])\../ }).on(
+        'change',
+        file => {
+          console.log(`${file} changed, processing...`)
+          run()
+          console.log(`Waiting for file change\n`)
+        }
+      )
     } else {
       run()
     }
 
     function run(): void {
-      try {                  
+      try {
         const result: string = gen(files, target)
-  
-        if (!output) return console.log(color ? highlight(result) : result + '\n')
-  
+
+        if (!output)
+          return console.log(color ? highlight(result) : result + '\n')
+
         const filepath: string = path.resolve(output)
         fs.writeFileSync(filepath, result, 'utf8')
         console.log(`Done at ${filepath}`)
       } catch (e) {
         throw new Error(e)
-      }      
+      }
     }
   }
 }
@@ -50,12 +54,14 @@ function handler(_data?: string) {
 function handleInitial(argv: yargs.Arguments): void {
   const dir = argv['dir'] as string
   const locales = argv['locales'] as string[]
-  const dirPath: string = path.isAbsolute(dir) ? dir : path.resolve(process.cwd(), dir)
+  const dirPath: string = path.isAbsolute(dir)
+    ? dir
+    : path.resolve(process.cwd(), dir)
   fs.mkdirSync(dirPath, { recursive: true })
   const out: string[] = [`|- ${dir}`]
   locales.forEach(file => {
     const filePath: string = path.resolve(dirPath, file + '.yaml')
-    if(fs.existsSync(filePath)) {
+    if (fs.existsSync(filePath)) {
       console.warn(`Skipped, ${filePath} was alread exists`)
     } else {
       fs.writeFileSync(path.resolve(dirPath, file + '.yaml'), '', 'utf-8')
@@ -90,17 +96,18 @@ export default function main(args: string[]) {
         describe: `initial a local file`,
         handler: handleInitial,
         builder: (yargs: yargs.Argv): yargs.Argv => {
-          return yargs.positional('locales', {
-            describe: 'default locales, default "en"',
-            type: 'string'
-          })
-          .options('d', {
-            alias: 'dir',
-            describe: 'Locales directory',
-            type: 'string',
-            default: `locales`,
-            normalize: true
-          })
+          return yargs
+            .positional('locales', {
+              describe: 'default locales, default "en"',
+              type: 'string'
+            })
+            .options('d', {
+              alias: 'dir',
+              describe: 'Locales directory',
+              type: 'string',
+              default: `locales`,
+              normalize: true
+            })
         }
       })
       .option('o', {
@@ -126,7 +133,7 @@ export default function main(args: string[]) {
         describe: `watch file change`,
         type: `boolean`,
         default: false
-      })      
+      })
       .version()
       .alias('v', 'version')
       .showHelpOnFail(true, 'Specify --help for available options')

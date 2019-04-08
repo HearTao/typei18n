@@ -17,26 +17,43 @@ export interface ParamArg {
 
 export type ArgType = LiteralArg | ParamArg
 
-export enum TypeNodeKind {
+export enum TypeDescriptorKind {
   string,
   call,
   record
 }
 
-export interface StringTypeNode {
-  kind: TypeNodeKind.string
-  raw: string
+export interface StringTypeDescriptor {
+  kind: TypeDescriptorKind.string
+  value: string
 }
 
-export interface CallTypeNode {
-  kind: TypeNodeKind.call
-  raw: string
+export interface CallTypeDescriptor {
+  kind: TypeDescriptorKind.call
   body: ArgType[]
 }
 
-export interface RecordTypeNode {
-  kind: TypeNodeKind.record
-  value: Record<string, TypeNode>
+export interface RecordTypeDescriptor {
+  kind: TypeDescriptorKind.record
+  value: Record<string, TypeDescriptor>
 }
 
-export type TypeNode = StringTypeNode | CallTypeNode | RecordTypeNode
+export interface MissingRecordTypeDescriptor extends RecordTypeDescriptor {
+  missing: true
+}
+
+export type TypeDescriptor =
+  | StringTypeDescriptor
+  | CallTypeDescriptor
+  | RecordTypeDescriptor
+  | MissingRecordTypeDescriptor
+
+export enum Target {
+  resource = 'resource',
+  provider = 'provider'
+}
+
+export interface Context {
+  errors: string[]
+  paths: string[]
+}

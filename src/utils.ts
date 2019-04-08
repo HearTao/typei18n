@@ -1,24 +1,26 @@
 import {
-  TypeNode,
-  StringTypeNode,
-  TypeNodeKind,
-  CallTypeNode,
-  RecordTypeNode,
+  TypeDescriptor,
+  StringTypeDescriptor,
+  TypeDescriptorKind,
+  CallTypeDescriptor,
+  RecordTypeDescriptor,
   ArgType,
   ParamArg,
-  ArgKind
+  ArgKind,
+  Context,
+  MissingRecordTypeDescriptor
 } from './types'
 
-export function isStringType(v: TypeNode): v is StringTypeNode {
-  return v.kind === TypeNodeKind.string
+export function isStringType(v: TypeDescriptor): v is StringTypeDescriptor {
+  return v.kind === TypeDescriptorKind.string
 }
 
-export function isCallType(v: TypeNode): v is CallTypeNode {
-  return v.kind === TypeNodeKind.call
+export function isCallType(v: TypeDescriptor): v is CallTypeDescriptor {
+  return v.kind === TypeDescriptorKind.call
 }
 
-export function isRecordType(v: TypeNode): v is RecordTypeNode {
-  return v.kind === TypeNodeKind.record
+export function isRecordType(v: TypeDescriptor): v is RecordTypeDescriptor {
+  return v.kind === TypeDescriptorKind.record
 }
 
 export function arrayEq<T>(a: T[], b: T[], cb: (a: T) => string): boolean {
@@ -36,4 +38,28 @@ export function first<T>(v: T[]): T {
     throw new Error('index out of range')
   }
   return v[0]
+}
+
+export function getCurrentPath(context: Context) {
+  return context.paths.length ? context.paths.join('.') : ''
+}
+
+export function inPathContext<T>(
+  context: Context,
+  path: string,
+  cb: (ctx: Context) => T
+): T {
+  context.paths.push(path)
+  const result = cb(context)
+  const p = context.paths.pop()
+  if (p !== path) {
+    throw new Error(`unexpected context path: expected ${path}, actually ${p}`)
+  }
+  return result
+}
+
+export function isMissingRecordTypeDescriptor(
+  v: RecordTypeDescriptor | MissingRecordTypeDescriptor
+): v is MissingRecordTypeDescriptor {
+  return 'missing' in v && v.missing
 }

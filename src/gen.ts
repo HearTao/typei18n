@@ -5,91 +5,55 @@ import * as ts from 'typescript'
 import * as prettier from 'prettier'
 import * as prettierConfig from './prettier.json'
 
-import {
-  YamlNode,
-  TypeNodeKind,
-  RecordTypeNode,
-  ArgType,
-  ArgKind
-} from './types'
+import { YamlNode, RecordTypeDescriptor, Target, Context } from './types'
 import {
   isStringType,
   isCallType,
   arrayEq,
   isRecordType,
   isParamArgType,
-  first
+  first,
+  getCurrentPath,
+  inPathContext,
+  isMissingRecordTypeDescriptor
 } from './utils'
+import {
+  genRecordType,
+  genAlias,
+  genResourceExport,
+  genProvider,
+  genProviderExport,
+  matchCallBody
+} from './helper'
+import {
+  createMissingRecordTypeDescriptor,
+  createStringTypeDescriptor,
+  createCallTypeDescriptor,
+  createRecordTypeDescriptor
+} from './factory'
 
-const callRegex = /{{\s([a-zA-Z0-9]*)\s}}/g
-
-function matchCallBody(reg: RegExp, str: string): ArgType[] | null {
-  let result: ArgType[] = []
-  let match: RegExpExecArray | null = null
-  let lastIndex = 0
-
-  do {
-    if (match) {
-      const [full, text] = match
-      const idx = match.index
-      if (idx > lastIndex) {
-        result.push({
-          kind: ArgKind.literal,
-          value: str.substring(lastIndex, idx)
-        })
-      }
-      result.push({
-        kind: ArgKind.param,
-        name: text
-      })
-      lastIndex = idx + full.length
-    }
-
-    match = reg.exec(str)
-  } while (match)
-
-  if (result.length) {
-    if (lastIndex < str.length) {
-      result.push({
-        kind: ArgKind.literal,
-        value: str.substring(lastIndex)
-      })
-    }
-    return result
-  }
-  return null
-}
-
-function toTypeNode(node: YamlNode, errors: string[]): RecordTypeNode {
-  const record: RecordTypeNode = {
-    kind: TypeNodeKind.record,
-    value: {}
-  }
+function toTypeNode(node: YamlNode, context: Context): RecordTypeDescriptor {
+  const record = createRecordTypeDescriptor({})
 
   Object.entries(node).forEach(([key, value]) => {
     switch (typeof value) {
       case 'number':
         value = value.toString()
       case 'string':
-        const args = matchCallBody(callRegex, value)
+        const args = matchCallBody(value)
         if (!args) {
-          record.value[key] = {
-            kind: TypeNodeKind.string,
-            raw: value
-          }
+          record.value[key] = createStringTypeDescriptor(value)
         } else {
-          record.value[key] = {
-            kind: TypeNodeKind.call,
-            raw: value,
-            body: args
-          }
+          record.value[key] = createCallTypeDescriptor(args)
         }
         break
       case 'object':
-        record.value[key] = toTypeNode(value, errors)
+        record.value[key] = inPathContext(context, key, ctx =>
+          toTypeNode(value, ctx)
+        )
         break
       default:
-        errors.push(`unexpected value: [${key}, ${value}]`)
+        context.errors.push(`unexpected value: [${key}, ${value}]`)
         break
     }
   })
@@ -97,34 +61,21 @@ function toTypeNode(node: YamlNode, errors: string[]): RecordTypeNode {
   return record
 }
 
-function transform(v: YamlNode): RecordTypeNode {
-  const errors: string[] = []
-  const node = toTypeNode(v, errors)
-  if (errors.length) {
-    throw new Error(errors.join('\n'))
-  }
-  return node
-}
-
 function merge(
-  target: RecordTypeNode,
-  source: RecordTypeNode,
-  errors: string[]
-): RecordTypeNode {
-  if (
-    target.kind !== TypeNodeKind.record ||
-    source.kind !== TypeNodeKind.record
-  ) {
-    throw new Error('type node must be Record')
-  }
+  target: RecordTypeDescriptor,
+  source: RecordTypeDescriptor,
+  context: Context
+): RecordTypeDescriptor {
   Object.entries(target.value).forEach(([key, value]) => {
     if (!(key in source.value)) {
-      errors.push(`unexpected property: ${key} is missing in ${source.kind}`)
+      context.errors.push(`${key} is missing in ${getCurrentPath(context)}`)
       return
     }
     if (source.value[key].kind !== value.kind) {
-      errors.push(
-        `unexpected type: (${key})[${target.value[key].kind}, ${value.kind}]`
+      context.errors.push(
+        `${getCurrentPath(context)}.${key} is not correctly type, expected: ${
+          value.kind
+        }, actually: ${source.value[key].kind}`
       )
       return
     }
@@ -132,7 +83,11 @@ function merge(
 
   Object.entries(source.value).forEach(([key, value]) => {
     if (!(key in target.value)) {
-      target.value[key] = value
+      if (isMissingRecordTypeDescriptor(target)) {
+        target.value[key] = source.value[key]
+      } else {
+        context.errors.push(`${key} is missing in ${getCurrentPath(context)}`)
+      }
       return
     }
 
@@ -146,290 +101,30 @@ function merge(
           x => x.name
         )
       ) {
-        errors.push(
-          `unexpected args: (${key}) has different args: [${
+        context.errors.push(
+          `${getCurrentPath(context)}.${key} has different type: [${
             targetValue.body
           }, ${value.body}]`
         )
         return
       }
     } else if (isRecordType(targetValue) && isRecordType(value)) {
-      merge(targetValue, value, errors)
+      inPathContext(context, key, ctx => merge(targetValue, value, ctx))
     } else {
-      errors.push(
-        `unexpected type: (${key})[${target.value[key].kind}, ${value.kind}]`
+      context.errors.push(
+        `${getCurrentPath(context)}.${key} is not correctly type, expected: ${
+          targetValue.kind
+        }, actually: ${value.kind}`
       )
       return
     }
   })
+
+  if (isMissingRecordTypeDescriptor(target)) {
+    delete target.missing
+  }
+
   return target
-}
-
-function genRecordType(merged: RecordTypeNode): ts.TypeLiteralNode {
-  return ts.createTypeLiteralNode(
-    Object.entries(merged.value).map(([key, value]) => {
-      switch (value.kind) {
-        case TypeNodeKind.string:
-          return ts.createPropertySignature(
-            undefined,
-            key,
-            undefined,
-            ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-            undefined
-          )
-        case TypeNodeKind.call:
-          return ts.createPropertySignature(
-            undefined,
-            key,
-            undefined,
-            ts.createFunctionTypeNode(
-              undefined,
-              value.body
-                .filter(isParamArgType)
-                .sort()
-                .map(arg =>
-                  ts.createParameter(
-                    undefined,
-                    undefined,
-                    undefined,
-                    arg.name,
-                    undefined,
-                    ts.createUnionTypeNode([
-                      ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-                      ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword)
-                    ]),
-                    undefined
-                  )
-                ),
-              ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
-            ),
-            undefined
-          )
-        case TypeNodeKind.record:
-          return ts.createPropertySignature(
-            undefined,
-            key,
-            undefined,
-            genRecordType(value),
-            undefined
-          )
-      }
-    })
-  )
-}
-
-function genAlias(name: string, type: ts.TypeNode) {
-  return ts.createTypeAliasDeclaration(
-    undefined,
-    [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
-    name,
-    undefined,
-    type
-  )
-}
-
-function genFuncCall(body: ArgType[]): ts.ArrowFunction {
-  return ts.createArrowFunction(
-    undefined,
-    undefined,
-    body
-      .filter(isParamArgType)
-      .sort()
-      .map(x =>
-        ts.createParameter(
-          undefined,
-          undefined,
-          undefined,
-          x.name,
-          undefined,
-          ts.createUnionTypeNode([
-            ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-            ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword)
-          ]),
-          undefined
-        )
-      ),
-    undefined,
-    undefined,
-    ts.createCall(
-      ts.createPropertyAccess(
-        ts.createArrayLiteral(
-          body.map(x =>
-            isParamArgType(x)
-              ? ts.createIdentifier(x.name)
-              : ts.createStringLiteral(x.value)
-          ),
-          false
-        ),
-        ts.createIdentifier('join')
-      ),
-      undefined,
-      [ts.createStringLiteral('')]
-    )
-  )
-}
-
-function genRecordLiteral(node: RecordTypeNode): ts.ObjectLiteralExpression {
-  return ts.createObjectLiteral(
-    Object.entries(node.value).map(([key, value]) => {
-      switch (value.kind) {
-        case TypeNodeKind.string:
-          return ts.createPropertyAssignment(key, ts.createLiteral(value.raw))
-        case TypeNodeKind.record:
-          return ts.createPropertyAssignment(key, genRecordLiteral(value))
-        case TypeNodeKind.call:
-          return ts.createPropertyAssignment(key, genFuncCall(value.body))
-        default:
-          throw new Error('unknown')
-      }
-    }),
-    true
-  )
-}
-
-function genResource(
-  type: ts.Identifier,
-  typeNodes: ReadonlyArray<[string, RecordTypeNode]>
-) {
-  return ts.createParen(
-    ts.createAsExpression(
-      ts.createObjectLiteral(
-        typeNodes.map(([file, node]) =>
-          ts.createPropertyAssignment(file, genRecordLiteral(node))
-        ),
-        false
-      ),
-      ts.createTypeReferenceNode(ts.createIdentifier('Record'), [
-        ts.createUnionTypeNode(
-          typeNodes.map(([file]) =>
-            ts.createLiteralTypeNode(ts.createStringLiteral(file))
-          )
-        ),
-        ts.createTypeReferenceNode(type, undefined)
-      ])
-    )
-  )
-}
-
-function genResourceExport(
-  type: ts.Identifier,
-  typeNodes: ReadonlyArray<[string, RecordTypeNode]>
-): ts.ExportAssignment {
-  return ts.createExportAssignment(
-    undefined,
-    undefined,
-    undefined,
-    genResource(type, typeNodes)
-  )
-}
-
-function genProvider() {
-  return ts.createClassDeclaration(
-    undefined,
-    [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
-    ts.createIdentifier('i18nProvider'),
-    [
-      ts.createTypeParameterDeclaration(
-        ts.createIdentifier('K'),
-        ts.createTypeOperatorNode(
-          ts.SyntaxKind.KeyOfKeyword,
-          ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
-        ),
-        undefined
-      ),
-      ts.createTypeParameterDeclaration(
-        ts.createIdentifier('U'),
-        undefined,
-        undefined
-      )
-    ],
-    undefined,
-    [
-      ts.createConstructor(
-        undefined,
-        undefined,
-        [
-          ts.createParameter(
-            undefined,
-            [ts.createModifier(ts.SyntaxKind.PrivateKeyword)],
-            undefined,
-            ts.createIdentifier('maps'),
-            undefined,
-            ts.createTypeReferenceNode(ts.createIdentifier('Record'), [
-              ts.createTypeReferenceNode(ts.createIdentifier('K'), undefined),
-              ts.createTypeReferenceNode(ts.createIdentifier('U'), undefined)
-            ]),
-            undefined
-          ),
-          ts.createParameter(
-            undefined,
-            [ts.createModifier(ts.SyntaxKind.PublicKeyword)],
-            undefined,
-            ts.createIdentifier('lang'),
-            undefined,
-            ts.createTypeReferenceNode(ts.createIdentifier('K'), undefined),
-            undefined
-          )
-        ],
-        ts.createBlock([], true)
-      ),
-      ts.createGetAccessor(
-        undefined,
-        [ts.createModifier(ts.SyntaxKind.PublicKeyword)],
-        ts.createIdentifier('t'),
-        [],
-        undefined,
-        ts.createBlock(
-          [
-            ts.createReturn(
-              ts.createElementAccess(
-                ts.createPropertyAccess(
-                  ts.createThis(),
-                  ts.createIdentifier('maps')
-                ),
-                ts.createPropertyAccess(
-                  ts.createThis(),
-                  ts.createIdentifier('lang')
-                )
-              )
-            )
-          ],
-          true
-        )
-      )
-    ]
-  )
-}
-
-function genProviderExport(
-  type: ts.Identifier,
-  typeNodes: ReadonlyArray<[string, RecordTypeNode]>,
-  lang: string
-) {
-  return [
-    ts.createVariableStatement(
-      undefined,
-      ts.createVariableDeclarationList(
-        [
-          ts.createVariableDeclaration(
-            ts.createIdentifier('provider'),
-            undefined,
-            ts.createNew(ts.createIdentifier('i18nProvider'), undefined, [
-              genResource(type, typeNodes),
-              ts.createStringLiteral(lang)
-            ])
-          )
-        ],
-        ts.NodeFlags.Const
-      )
-    ),
-    ts.createExportAssignment(
-      undefined,
-      undefined,
-      undefined,
-      ts.createIdentifier('provider')
-    )
-  ]
 }
 
 function print(nodes: ts.Node[]) {
@@ -442,12 +137,26 @@ function print(nodes: ts.Node[]) {
     )
 }
 
-export enum Target {
-  resource = 'resource',
-  provider = 'provider'
+function genExportDefault(
+  target: Target,
+  typeAlias: ts.TypeAliasDeclaration,
+  typeNodes: [string, RecordTypeDescriptor][],
+  defaultLang: string
+) {
+  switch (target) {
+    case Target.resource:
+      return [genResourceExport(typeAlias.name, typeNodes)]
+    case Target.provider:
+      return [
+        genProvider(),
+        ...genProviderExport(typeAlias.name, typeNodes, defaultLang)
+      ]
+  }
 }
 
 export function gen(filenames: string[], target: Target = Target.resource) {
+  const context: Context = { errors: [], paths: [] }
+
   const files = filenames.map(
     file =>
       [path.basename(file, '.yaml'), fs.readFileSync(file).toString()] as [
@@ -457,32 +166,27 @@ export function gen(filenames: string[], target: Target = Target.resource) {
   )
   const typeNodes = files
     .map(([f, x]) => [f, yaml.parse(x) as YamlNode])
-    .map(([f, x]) => [f, transform(x)] as [string, RecordTypeNode])
-  const errors: string[] = []
-  const merged = typeNodes.reduce(
-    (prev, [_, next]) => merge(prev, next, errors),
-    { kind: TypeNodeKind.record, value: {} } as RecordTypeNode
+    .map(
+      ([f, x]) => [f, toTypeNode(x, context)] as [string, RecordTypeDescriptor]
+    )
+
+  const merged = typeNodes.reduce<RecordTypeDescriptor>(
+    (prev, [_, next]) => merge(prev, next, context),
+    createMissingRecordTypeDescriptor()
   )
-  if (errors.length) {
-    throw new Error(errors.join('\n'))
+
+  if (context.errors.length) {
+    throw new Error(context.errors.join('\n'))
   }
 
   const rootType = 'RootType'
   const typeAlias = genAlias(rootType, genRecordType(merged))
-
-  let exportDefault: ts.Node[] = []
-
-  switch (target) {
-    case Target.resource:
-      exportDefault = [genResourceExport(typeAlias.name, typeNodes)]
-      break
-    case Target.provider:
-      exportDefault = [
-        genProvider(),
-        ...genProviderExport(typeAlias.name, typeNodes, first(files)[0])
-      ]
-      break
-  }
+  const exportDefault = genExportDefault(
+    target,
+    typeAlias,
+    typeNodes,
+    first(files)[0]
+  )
 
   const code = prettier.format(
     print([typeAlias, ...exportDefault]),
