@@ -67,4 +67,4 @@ dist/
 
 .vscode/
 
-# src/locales/*.ts
+src/locales/*.ts
