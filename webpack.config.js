@@ -32,5 +32,5 @@ module.exports.cli = merge(module.exports.lib, {
     library: 'typeI18nCli',
     libraryTarget: 'commonjs2'
   },
-  externals: ['typescript', 'yargs', 'prettier', 'get-stdin', './']
+  externals: ['typescript', 'yargs', 'prettier', 'get-stdin', 'chokidar', './']
 })
