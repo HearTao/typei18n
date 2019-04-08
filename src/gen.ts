@@ -4,7 +4,6 @@ import * as path from 'path'
 import * as ts from 'typescript'
 import * as prettier from 'prettier'
 import * as prettierConfig from './prettier.json'
-import i18n from './locales'
 
 import { YamlNode, RecordTypeDescriptor, Target, Context } from './types'
 import {
@@ -55,7 +54,7 @@ function toTypeNode(node: YamlNode, context: Context): RecordTypeDescriptor {
         )
         break
       default:
-        context.errors.push(i18n.t.errors.unexpectedValue({ key, value }))
+        context.errors.push(`unexpected value: [ ${{ key }}, ${ value }]`)
         break
     }
   })
