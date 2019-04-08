@@ -5,6 +5,19 @@ import * as getStdin from 'get-stdin'
 import { gen, Target } from './'
 import { highlight } from 'cardinal'
 import { watch as chokidar } from 'chokidar'
+import * as osLocale  from 'os-locale'
+import i18n, { Language } from './locales'
+
+function mapLocaleToLanguage (l: string): Language {
+  switch (l) {
+    case 'en_US':
+      return 'en-US'
+    case 'zh_CN':
+      return 'zh-CN'
+    default:
+      return 'en-US'
+  }
+}
 
 function handler(_data?: string) {
   return function handler1(argv: yargs.Arguments): void {
@@ -13,6 +26,9 @@ function handler(_data?: string) {
     const color = argv['color'] as boolean
     const target = argv['target'] as Target
     const watch = argv[`watch`] as boolean
+
+    const lang = osLocale.sync()
+    i18n.lang = mapLocaleToLanguage(lang)
 
     const files = fs
       .readdirSync(input)

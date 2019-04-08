@@ -1,2 +1,5 @@
 errors:
-  unexpectedValue: "unexpected value: [ {{ key }}, {{ value }}]"
+  unexpected_value: "unexpected value: [ {{ key }}, {{ value }}]"
+  key_missing_in_path: "{{ key }} is missing in {{ path }}"
+  type_of_path_is_unexpected: "{{ path }} is not unexpected: should: {{ should }}, actually: {{ actually }}"
+  args_is_different: "{{ path }} has different arguments, [{{ one }}], [{{ two }}]"

@@ -33,6 +33,8 @@ import {
   createRecordTypeDescriptor
 } from './factory'
 
+import i18n from './locales'
+
 function toTypeNode(node: YamlNode, context: Context): RecordTypeDescriptor {
   const record = createRecordTypeDescriptor({})
 
@@ -54,7 +56,7 @@ function toTypeNode(node: YamlNode, context: Context): RecordTypeDescriptor {
         )
         break
       default:
-        context.errors.push(`unexpected value: [ ${{ key }}, ${ value }]`)
+        context.errors.push(i18n.t.errors.unexpected_value({ key, value }))
         break
     }
   })
@@ -69,14 +71,21 @@ function merge(
 ): RecordTypeDescriptor {
   Object.entries(target.value).forEach(([key, value]) => {
     if (!(key in source.value)) {
-      context.errors.push(`${key} is missing in ${getCurrentPath(context)}`)
+      context.errors.push(
+        i18n.t.errors.key_missing_in_path({
+          key,
+          path: getCurrentPath(context)
+        })
+      )
       return
     }
     if (source.value[key].kind !== value.kind) {
       context.errors.push(
-        `${getCurrentPath(context)}.${key} is not correctly type, expected: ${
-        value.kind
-        }, actually: ${source.value[key].kind}`
+        i18n.t.errors.type_of_path_is_unexpected({
+          path: `${getCurrentPath(context)}.${key}`,
+          actually: source.value[key].kind,
+          should: value.kind
+        })
       )
       return
     }
@@ -87,7 +96,12 @@ function merge(
       if (isMissingRecordTypeDescriptor(target)) {
         target.value[key] = source.value[key]
       } else {
-        context.errors.push(`${key} is missing in ${getCurrentPath(context)}`)
+        context.errors.push(
+          i18n.t.errors.key_missing_in_path({
+            key,
+            path: getCurrentPath(context)
+          })
+        )
       }
       return
     }
@@ -95,17 +109,16 @@ function merge(
     const targetValue = target.value[key]
     if (isStringType(targetValue) && isStringType(value)) {
     } else if (isCallType(targetValue) && isCallType(value)) {
-      if (
-        !arrayEq(
-          targetValue.body.filter(isParamArgType),
-          value.body.filter(isParamArgType),
-          x => x.name
-        )
-      ) {
+      const targetArgs = targetValue.body.filter(isParamArgType)
+      const sourceArgs = value.body.filter(isParamArgType)
+
+      if (!arrayEq(targetArgs, sourceArgs, x => x.name)) {
         context.errors.push(
-          `${getCurrentPath(context)}.${key} has different type: [${
-          targetValue.body
-          }, ${value.body}]`
+          i18n.t.errors.args_is_different({
+            path: `${getCurrentPath(context)}.${key}`,
+            one: targetArgs.map(x => x.name).join(','),
+            two: sourceArgs.map(x => x.name).join(',')
+          })
         )
         return
       }
@@ -113,9 +126,11 @@ function merge(
       inPathContext(context, key, ctx => merge(targetValue, value, ctx))
     } else {
       context.errors.push(
-        `${getCurrentPath(context)}.${key} is not correctly type, expected: ${
-        targetValue.kind
-        }, actually: ${value.kind}`
+        i18n.t.errors.type_of_path_is_unexpected({
+          path: `${getCurrentPath(context)}.${key}`,
+          actually: value.kind,
+          should: targetValue.kind
+        })
       )
       return
     }

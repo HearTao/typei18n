@@ -28,30 +28,36 @@ export function genRecordType(
             undefined,
             ts.createFunctionTypeNode(
               undefined,
-              [ts.createParameter(
-                undefined,
-                undefined,
-                undefined,
-                'options',
-                undefined,
-                ts.createTypeLiteralNode(
-                  value.body
-                    .filter(isParamArgType)
-                    .sort()
-                    .map(arg =>
-                      ts.createPropertySignature(
-                        undefined,
-                        arg.name,
-                        undefined,
-                        ts.createUnionTypeNode([
-                          ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-                          ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword)
-                        ]),
-                        undefined
+              [
+                ts.createParameter(
+                  undefined,
+                  undefined,
+                  undefined,
+                  'options',
+                  undefined,
+                  ts.createTypeLiteralNode(
+                    value.body
+                      .filter(isParamArgType)
+                      .sort()
+                      .map(arg =>
+                        ts.createPropertySignature(
+                          undefined,
+                          arg.name,
+                          undefined,
+                          ts.createUnionTypeNode([
+                            ts.createKeywordTypeNode(
+                              ts.SyntaxKind.StringKeyword
+                            ),
+                            ts.createKeywordTypeNode(
+                              ts.SyntaxKind.NumberKeyword
+                            )
+                          ]),
+                          undefined
+                        )
                       )
-                    )
+                  )
                 )
-              )],
+              ],
               ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
             ),
             undefined
@@ -81,7 +87,7 @@ export function genLanguageType(lang: string[]) {
   )
 }
 
-export function genResourceType (name: string, type: ts.TypeNode) {
+export function genResourceType(name: string, type: ts.TypeNode) {
   return ts.createTypeAliasDeclaration(
     undefined,
     [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
@@ -117,7 +123,7 @@ export function genFuncCall(body: ArgType[]): ts.ArrowFunction {
                 ]),
                 undefined
               )
-            ),
+            )
         )
       )
     ],
@@ -129,9 +135,9 @@ export function genFuncCall(body: ArgType[]): ts.ArrowFunction {
           body.map(x =>
             isParamArgType(x)
               ? ts.createPropertyAccess(
-                ts.createIdentifier('options'),
-                ts.createIdentifier(x.name)
-              )
+                  ts.createIdentifier('options'),
+                  ts.createIdentifier(x.name)
+                )
               : ts.createStringLiteral(x.value)
           ),
           false
@@ -172,7 +178,10 @@ export function genResource(
     ts.createAsExpression(
       ts.createObjectLiteral(
         typeNodes.map(([file, node]) =>
-          ts.createPropertyAssignment(ts.createStringLiteral(file), genRecordLiteral(node))
+          ts.createPropertyAssignment(
+            ts.createStringLiteral(file),
+            genRecordLiteral(node)
+          )
         ),
         false
       ),
