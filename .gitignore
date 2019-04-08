@@ -66,3 +66,5 @@ lib/
 dist/
 
 .vscode/
+
+src/locales/*.ts
