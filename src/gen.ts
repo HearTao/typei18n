@@ -4,6 +4,7 @@ import * as path from 'path'
 import * as ts from 'typescript'
 import * as prettier from 'prettier'
 import * as prettierConfig from './prettier.json'
+import i18n from './locales'
 
 import { YamlNode, RecordTypeDescriptor, Target, Context } from './types'
 import {
@@ -19,11 +20,12 @@ import {
 } from './utils'
 import {
   genRecordType,
-  genAlias,
   genResourceExport,
   genProvider,
   genProviderExport,
-  matchCallBody
+  matchCallBody,
+  genResourceType,
+  genLanguageType
 } from './helper'
 import {
   createMissingRecordTypeDescriptor,
@@ -53,7 +55,7 @@ function toTypeNode(node: YamlNode, context: Context): RecordTypeDescriptor {
         )
         break
       default:
-        context.errors.push(`unexpected value: [${key}, ${value}]`)
+        context.errors.push(i18n.t.errors.unexpectedValue({ key, value }))
         break
     }
   })
@@ -74,7 +76,7 @@ function merge(
     if (source.value[key].kind !== value.kind) {
       context.errors.push(
         `${getCurrentPath(context)}.${key} is not correctly type, expected: ${
-          value.kind
+        value.kind
         }, actually: ${source.value[key].kind}`
       )
       return
@@ -103,7 +105,7 @@ function merge(
       ) {
         context.errors.push(
           `${getCurrentPath(context)}.${key} has different type: [${
-            targetValue.body
+          targetValue.body
           }, ${value.body}]`
         )
         return
@@ -113,7 +115,7 @@ function merge(
     } else {
       context.errors.push(
         `${getCurrentPath(context)}.${key} is not correctly type, expected: ${
-          targetValue.kind
+        targetValue.kind
         }, actually: ${value.kind}`
       )
       return
@@ -180,16 +182,19 @@ export function gen(filenames: string[], target: Target = Target.resource) {
   }
 
   const rootType = 'RootType'
-  const typeAlias = genAlias(rootType, genRecordType(merged))
+  const lang = files.map(first)
+  const languageType = genLanguageType(lang)
+  const resourceType = genResourceType(rootType, genRecordType(merged))
+
   const exportDefault = genExportDefault(
     target,
-    typeAlias,
+    resourceType,
     typeNodes,
-    first(files)[0]
+    first(lang)
   )
 
   const code = prettier.format(
-    print([typeAlias, ...exportDefault]),
+    print([languageType, resourceType, ...exportDefault]),
     prettierConfig as prettier.Options
   )
   return code
