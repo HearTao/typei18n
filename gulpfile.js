@@ -15,7 +15,6 @@ function createI18nPipe(gen) {
       path: './index.ts',
       contents: new Buffer(content)
     })
-
     callback(null, file)
   })
 }
