@@ -97,7 +97,7 @@ export function genResourceType(name: string, type: ts.TypeNode) {
   )
 }
 
-export function genFuncCall(body: ArgType[]): ts.ArrowFunction {
+function genFuncCall(body: ArgType[]): ts.ArrowFunction {
   return ts.createArrowFunction(
     undefined,
     undefined,
@@ -170,9 +170,63 @@ export function genRecordLiteral(
   )
 }
 
-export function genResource(
+function genAsyncProperty(key: string) {
+  return ts.createParen(
+    ts.createArrowFunction(
+      undefined,
+      undefined,
+      [],
+      undefined,
+      ts.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+      ts.createCall(
+        ts.createPropertyAccess(
+          ts.createCall(
+            ts.createNode(ts.SyntaxKind.ImportKeyword) as ts.Expression,
+            undefined,
+            [ts.createStringLiteral(`./${key}`)]
+          ),
+          ts.createIdentifier('then')
+        ),
+        undefined,
+        [
+          ts.createArrowFunction(
+            undefined,
+            undefined,
+            [
+              ts.createParameter(
+                undefined,
+                undefined,
+                undefined,
+                ts.createIdentifier('x'),
+                undefined,
+                undefined,
+                undefined
+              )
+            ],
+            undefined,
+            ts.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+            ts.createAsExpression(
+              ts.createPropertyAccess(
+                ts.createIdentifier('x'),
+                ts.createIdentifier('default')
+              ),
+              ts.createTypeReferenceNode(
+                ts.createIdentifier('RootType'),
+                undefined
+              )
+            )
+          )
+        ]
+      )
+    )
+  )
+}
+
+function genResource(
   type: ts.Identifier,
-  typeNodes: ReadonlyArray<[string, RecordTypeDescriptor]>
+  typeNodes: ReadonlyArray<[string, RecordTypeDescriptor]>,
+  lazy: boolean,
+  lang: string
 ) {
   return ts.createParen(
     ts.createAsExpression(
@@ -180,18 +234,29 @@ export function genResource(
         typeNodes.map(([file, node]) =>
           ts.createPropertyAssignment(
             ts.createStringLiteral(file),
-            genRecordLiteral(node)
+            !lazy || lang === file
+              ? genRecordLiteral(node)
+              : genAsyncProperty(file)
           )
         ),
         false
       ),
       ts.createTypeReferenceNode(ts.createIdentifier('Record'), [
-        ts.createUnionTypeNode(
-          typeNodes.map(([file]) =>
-            ts.createLiteralTypeNode(ts.createStringLiteral(file))
-          )
-        ),
-        ts.createTypeReferenceNode(type, undefined)
+        ts.createTypeReferenceNode(ts.createIdentifier('Language'), undefined),
+        lazy
+          ? ts.createUnionTypeNode([
+              ts.createTypeReferenceNode(type, undefined),
+              ts.createParenthesizedType(
+                ts.createFunctionTypeNode(
+                  undefined,
+                  [],
+                  ts.createTypeReferenceNode(ts.createIdentifier('Promise'), [
+                    ts.createTypeReferenceNode(type, undefined)
+                  ])
+                )
+              )
+            ])
+          : ts.createTypeReferenceNode(type, undefined)
       ])
     )
   )
@@ -205,30 +270,16 @@ export function genResourceExport(
     undefined,
     undefined,
     undefined,
-    genResource(type, typeNodes)
+    genResource(type, typeNodes, false, '')
   )
 }
 
-export function genProvider() {
+function genSyncProvider() {
   return ts.createClassDeclaration(
     undefined,
     [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
-    ts.createIdentifier('i18nProvider'),
-    [
-      ts.createTypeParameterDeclaration(
-        ts.createIdentifier('K'),
-        ts.createTypeOperatorNode(
-          ts.SyntaxKind.KeyOfKeyword,
-          ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
-        ),
-        undefined
-      ),
-      ts.createTypeParameterDeclaration(
-        ts.createIdentifier('U'),
-        undefined,
-        undefined
-      )
-    ],
+    ts.createIdentifier('I18nProvider'),
+    undefined,
     undefined,
     [
       ts.createConstructor(
@@ -242,22 +293,87 @@ export function genProvider() {
             ts.createIdentifier('maps'),
             undefined,
             ts.createTypeReferenceNode(ts.createIdentifier('Record'), [
-              ts.createTypeReferenceNode(ts.createIdentifier('K'), undefined),
-              ts.createTypeReferenceNode(ts.createIdentifier('U'), undefined)
+              ts.createTypeReferenceNode(
+                ts.createIdentifier('Language'),
+                undefined
+              ),
+              ts.createTypeReferenceNode(
+                ts.createIdentifier('RootType'),
+                undefined
+              )
             ]),
             undefined
           ),
           ts.createParameter(
             undefined,
-            [ts.createModifier(ts.SyntaxKind.PublicKeyword)],
+            [ts.createModifier(ts.SyntaxKind.PrivateKeyword)],
             undefined,
-            ts.createIdentifier('lang'),
+            ts.createIdentifier('_lang'),
             undefined,
-            ts.createTypeReferenceNode(ts.createIdentifier('K'), undefined),
+            ts.createTypeReferenceNode(
+              ts.createIdentifier('Language'),
+              undefined
+            ),
             undefined
           )
         ],
         ts.createBlock([], true)
+      ),
+      ts.createGetAccessor(
+        undefined,
+        undefined,
+        ts.createIdentifier('lang'),
+        [],
+        undefined,
+        ts.createBlock(
+          [
+            ts.createReturn(
+              ts.createPropertyAccess(
+                ts.createThis(),
+                ts.createIdentifier('_lang')
+              )
+            )
+          ],
+          true
+        )
+      ),
+      ts.createMethod(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.PublicKeyword)],
+        undefined,
+        ts.createIdentifier('setLanguage'),
+        undefined,
+        undefined,
+        [
+          ts.createParameter(
+            undefined,
+            undefined,
+            undefined,
+            ts.createIdentifier('lang'),
+            undefined,
+            ts.createTypeReferenceNode(
+              ts.createIdentifier('Language'),
+              undefined
+            ),
+            undefined
+          )
+        ],
+        undefined,
+        ts.createBlock(
+          [
+            ts.createExpressionStatement(
+              ts.createBinary(
+                ts.createPropertyAccess(
+                  ts.createThis(),
+                  ts.createIdentifier('_lang')
+                ),
+                ts.createToken(ts.SyntaxKind.FirstAssignment),
+                ts.createIdentifier('lang')
+              )
+            )
+          ],
+          true
+        )
       ),
       ts.createGetAccessor(
         undefined,
@@ -287,9 +403,293 @@ export function genProvider() {
   )
 }
 
+function genAsyncProvider() {
+  return ts.createClassDeclaration(
+    undefined,
+    [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
+    ts.createIdentifier('LazyI18nProvider'),
+    undefined,
+    undefined,
+    [
+      ts.createConstructor(
+        undefined,
+        undefined,
+        [
+          ts.createParameter(
+            undefined,
+            [ts.createModifier(ts.SyntaxKind.PrivateKeyword)],
+            undefined,
+            ts.createIdentifier('maps'),
+            undefined,
+            ts.createTypeReferenceNode(ts.createIdentifier('Record'), [
+              ts.createTypeReferenceNode(
+                ts.createIdentifier('Language'),
+                undefined
+              ),
+              ts.createUnionTypeNode([
+                ts.createTypeReferenceNode(
+                  ts.createIdentifier('RootType'),
+                  undefined
+                ),
+                ts.createParenthesizedType(
+                  ts.createFunctionTypeNode(
+                    undefined,
+                    [],
+                    ts.createTypeReferenceNode(ts.createIdentifier('Promise'), [
+                      ts.createTypeReferenceNode(
+                        ts.createIdentifier('RootType'),
+                        undefined
+                      )
+                    ])
+                  )
+                )
+              ])
+            ]),
+            undefined
+          ),
+          ts.createParameter(
+            undefined,
+            [ts.createModifier(ts.SyntaxKind.PrivateKeyword)],
+            undefined,
+            ts.createIdentifier('_lang'),
+            undefined,
+            ts.createTypeReferenceNode(
+              ts.createIdentifier('Language'),
+              undefined
+            ),
+            undefined
+          )
+        ],
+        ts.createBlock([], true)
+      ),
+      ts.createGetAccessor(
+        undefined,
+        undefined,
+        ts.createIdentifier('lang'),
+        [],
+        undefined,
+        ts.createBlock(
+          [
+            ts.createReturn(
+              ts.createPropertyAccess(
+                ts.createThis(),
+                ts.createIdentifier('_lang')
+              )
+            )
+          ],
+          true
+        )
+      ),
+      ts.createMethod(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.PublicKeyword)],
+        undefined,
+        ts.createIdentifier('setLanguage'),
+        undefined,
+        undefined,
+        [
+          ts.createParameter(
+            undefined,
+            undefined,
+            undefined,
+            ts.createIdentifier('lang'),
+            undefined,
+            ts.createTypeReferenceNode(
+              ts.createIdentifier('Language'),
+              undefined
+            ),
+            undefined
+          )
+        ],
+        undefined,
+        ts.createBlock(
+          [
+            ts.createVariableStatement(
+              undefined,
+              ts.createVariableDeclarationList(
+                [
+                  ts.createVariableDeclaration(
+                    ts.createIdentifier('r'),
+                    undefined,
+                    ts.createElementAccess(
+                      ts.createPropertyAccess(
+                        ts.createThis(),
+                        ts.createIdentifier('maps')
+                      ),
+                      ts.createIdentifier('lang')
+                    )
+                  )
+                ],
+                ts.NodeFlags.Const
+              )
+            ),
+            ts.createIf(
+              ts.createBinary(
+                ts.createTypeOf(ts.createIdentifier('r')),
+                ts.createToken(ts.SyntaxKind.EqualsEqualsEqualsToken),
+                ts.createStringLiteral('function')
+              ),
+              ts.createBlock(
+                [
+                  ts.createReturn(
+                    ts.createCall(
+                      ts.createPropertyAccess(
+                        ts.createCall(ts.createIdentifier('r'), undefined, []),
+                        ts.createIdentifier('then')
+                      ),
+                      undefined,
+                      [
+                        ts.createArrowFunction(
+                          undefined,
+                          undefined,
+                          [
+                            ts.createParameter(
+                              undefined,
+                              undefined,
+                              undefined,
+                              ts.createIdentifier('rec'),
+                              undefined,
+                              undefined,
+                              undefined
+                            )
+                          ],
+                          undefined,
+                          ts.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+                          ts.createBlock(
+                            [
+                              ts.createIf(
+                                ts.createBinary(
+                                  ts.createTypeOf(
+                                    ts.createElementAccess(
+                                      ts.createPropertyAccess(
+                                        ts.createThis(),
+                                        ts.createIdentifier('maps')
+                                      ),
+                                      ts.createIdentifier('lang')
+                                    )
+                                  ),
+                                  ts.createToken(
+                                    ts.SyntaxKind.EqualsEqualsEqualsToken
+                                  ),
+                                  ts.createStringLiteral('function')
+                                ),
+                                ts.createBlock(
+                                  [
+                                    ts.createExpressionStatement(
+                                      ts.createBinary(
+                                        ts.createElementAccess(
+                                          ts.createPropertyAccess(
+                                            ts.createThis(),
+                                            ts.createIdentifier('maps')
+                                          ),
+                                          ts.createIdentifier('lang')
+                                        ),
+                                        ts.createToken(
+                                          ts.SyntaxKind.FirstAssignment
+                                        ),
+                                        ts.createIdentifier('rec')
+                                      )
+                                    ),
+                                    ts.createExpressionStatement(
+                                      ts.createBinary(
+                                        ts.createPropertyAccess(
+                                          ts.createThis(),
+                                          ts.createIdentifier('_lang')
+                                        ),
+                                        ts.createToken(
+                                          ts.SyntaxKind.FirstAssignment
+                                        ),
+                                        ts.createIdentifier('lang')
+                                      )
+                                    )
+                                  ],
+                                  true
+                                ),
+                                undefined
+                              )
+                            ],
+                            true
+                          )
+                        )
+                      ]
+                    )
+                  )
+                ],
+                true
+              ),
+              ts.createBlock(
+                [
+                  ts.createExpressionStatement(
+                    ts.createBinary(
+                      ts.createPropertyAccess(
+                        ts.createThis(),
+                        ts.createIdentifier('_lang')
+                      ),
+                      ts.createToken(ts.SyntaxKind.FirstAssignment),
+                      ts.createIdentifier('lang')
+                    )
+                  ),
+                  ts.createReturn(
+                    ts.createCall(
+                      ts.createPropertyAccess(
+                        ts.createIdentifier('Promise'),
+                        ts.createIdentifier('resolve')
+                      ),
+                      undefined,
+                      []
+                    )
+                  )
+                ],
+                true
+              )
+            )
+          ],
+          true
+        )
+      ),
+      ts.createGetAccessor(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.PublicKeyword)],
+        ts.createIdentifier('t'),
+        [],
+        undefined,
+        ts.createBlock(
+          [
+            ts.createReturn(
+              ts.createAsExpression(
+                ts.createElementAccess(
+                  ts.createPropertyAccess(
+                    ts.createThis(),
+                    ts.createIdentifier('maps')
+                  ),
+                  ts.createPropertyAccess(
+                    ts.createThis(),
+                    ts.createIdentifier('lang')
+                  )
+                ),
+                ts.createTypeReferenceNode(
+                  ts.createIdentifier('RootType'),
+                  undefined
+                )
+              )
+            )
+          ],
+          true
+        )
+      )
+    ]
+  )
+}
+
+export function genProvider(lazy: boolean) {
+  return lazy ? genAsyncProvider() : genSyncProvider()
+}
+
 export function genProviderExport(
   type: ts.Identifier,
+  provider: ts.Identifier,
   typeNodes: ReadonlyArray<[string, RecordTypeDescriptor]>,
+  lazy: boolean,
   lang: string
 ) {
   return [
@@ -300,8 +700,8 @@ export function genProviderExport(
           ts.createVariableDeclaration(
             ts.createIdentifier('provider'),
             undefined,
-            ts.createNew(ts.createIdentifier('i18nProvider'), undefined, [
-              genResource(type, typeNodes),
+            ts.createNew(provider, undefined, [
+              genResource(type, typeNodes, lazy, lang),
               ts.createStringLiteral(lang)
             ])
           )

@@ -5,10 +5,10 @@ import * as getStdin from 'get-stdin'
 import { gen, Target } from './'
 import { highlight } from 'cardinal'
 import { watch as chokidar } from 'chokidar'
-import * as osLocale  from 'os-locale'
+import * as osLocale from 'os-locale'
 import i18n, { Language } from './locales'
 
-function mapLocaleToLanguage (l: string): Language {
+function mapLocaleToLanguage(l: string): Language {
   switch (l) {
     case 'en_US':
       return 'en-US'
@@ -26,9 +26,10 @@ function handler(_data?: string) {
     const color = argv['color'] as boolean
     const target = argv['target'] as Target
     const watch = argv[`watch`] as boolean
+    const lazy = argv[`lazy`] as boolean
+    const defaultLanguage = argv[`default`] as string
 
-    const lang = osLocale.sync()
-    i18n.lang = mapLocaleToLanguage(lang)
+    // i18n.setLanguage(mapLocaleToLanguage(osLocale.sync()))
 
     const files = fs
       .readdirSync(input)
@@ -52,17 +53,56 @@ function handler(_data?: string) {
 
     function run(): void {
       try {
-        const result: string = gen(files, target)
-
-        if (!output)
-          return console.log(color ? highlight(result) : result + '\n')
-
-        const filepath: string = path.resolve(output)
-        fs.writeFileSync(filepath, result, 'utf8')
-        console.log(`Done at ${filepath}`)
+        if (lazy) {
+          generateLazy()
+        } else {
+          generate()
+        }
       } catch (e) {
         throw new Error(e)
       }
+    }
+
+    function generate() {
+      const result = gen(files, target)
+
+      if (!output) {
+        console.log(color ? highlight(result) : result + '\n')
+        return
+      }
+
+      const filepath: string = path.resolve(output)
+
+      fs.writeFileSync(path.join(filepath, 'index.ts'), result, 'utf8')
+      console.log(`Done at ${filepath}`)
+    }
+
+    function generateLazy() {
+      const [index, others] = gen(files, target, true, defaultLanguage)
+
+      if (!output) {
+        console.log(
+          `${'<'.padEnd(40, '=')} index.ts ${'>'.padStart(40, '=')}\n`
+        )
+        console.log(color ? highlight(index) : index + '\n')
+
+        others.forEach(([file, code]) => {
+          console.log(
+            `${'<'.padEnd(40, '=')} ${file}.ts ${'>'.padStart(40, '=')}\n`
+          )
+          console.log(color ? highlight(code) : code + '\n')
+        })
+        return
+      }
+
+      const filepath: string = path.resolve(output)
+
+      fs.writeFileSync(path.join(filepath, 'index.ts'), index, 'utf8')
+      others.forEach(([file, code]) => {
+        fs.writeFileSync(path.join(filepath, `${file}.ts`), code, 'utf8')
+      })
+
+      console.log(`Done at ${filepath}`)
     }
   }
 }
@@ -143,6 +183,17 @@ export default function main(args: string[]) {
         type: 'string',
         choices: [Target.resource, Target.provider],
         default: Target.provider
+      })
+      .option('l', {
+        alias: 'lazy',
+        describe: 'Lazy loading',
+        type: 'boolean',
+        default: false
+      })
+      .option('d', {
+        alias: 'default',
+        describe: 'Default language',
+        type: 'string'
       })
       .option(`w`, {
         alias: `watch`,
