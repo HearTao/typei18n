@@ -97,7 +97,7 @@ export function genResourceType(name: string, type: ts.TypeNode) {
   )
 }
 
-export function genFuncCall(body: ArgType[]): ts.ArrowFunction {
+function genFuncCall(body: ArgType[]): ts.ArrowFunction {
   return ts.createArrowFunction(
     undefined,
     undefined,
@@ -170,7 +170,7 @@ export function genRecordLiteral(
   )
 }
 
-export function genAsyncProperty(key: string) {
+function genAsyncProperty(key: string) {
   return ts.createParen(
     ts.createArrowFunction(
       undefined,
@@ -222,7 +222,7 @@ export function genAsyncProperty(key: string) {
   )
 }
 
-export function genResource(
+function genResource(
   type: ts.Identifier,
   typeNodes: ReadonlyArray<[string, RecordTypeDescriptor]>,
   lazy: boolean,
