@@ -50,7 +50,8 @@ export type TypeDescriptor =
 
 export enum Target {
   resource = 'resource',
-  provider = 'provider'
+  provider = 'provider',
+  type = 'type'
 }
 
 export interface Context {

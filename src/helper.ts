@@ -685,6 +685,29 @@ export function genProvider(lazy: boolean) {
   return lazy ? genAsyncProvider() : genSyncProvider()
 }
 
+export function genProviderExportDeclaration(provider: ts.Identifier) {
+  return [
+    ts.createVariableStatement(
+      [ts.createModifier(ts.SyntaxKind.DeclareKeyword)],
+      ts.createVariableDeclarationList(
+        [
+          ts.createVariableDeclaration(
+            ts.createIdentifier('provider'),
+            ts.createTypeReferenceNode(provider, undefined)
+          )
+        ],
+        ts.NodeFlags.Const
+      )
+    ),
+    ts.createExportAssignment(
+      undefined,
+      [ts.createModifier(ts.SyntaxKind.DeclareKeyword)],
+      undefined,
+      ts.createIdentifier('provider')
+    )
+  ]
+}
+
 export function genProviderExport(
   type: ts.Identifier,
   provider: ts.Identifier,

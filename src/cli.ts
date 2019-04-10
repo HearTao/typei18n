@@ -181,7 +181,7 @@ export default function main(args: string[]) {
         alias: 'target',
         describe: 'Output target',
         type: 'string',
-        choices: [Target.resource, Target.provider],
+        choices: [Target.resource, Target.provider, Target.type],
         default: Target.provider
       })
       .option('l', {

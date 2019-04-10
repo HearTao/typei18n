@@ -25,7 +25,8 @@ import {
   matchCallBody,
   genResourceType,
   genLanguageType,
-  genRecordLiteral
+  genRecordLiteral,
+  genProviderExportDeclaration
 } from './helper'
 import {
   createMissingRecordTypeDescriptor,
@@ -164,6 +165,12 @@ function genExportDefault(
   switch (target) {
     case Target.resource:
       return [genResourceExport(typeAlias.name, typeNodes)]
+    case Target.type:
+      const providerDeclaration = genProvider(lazy)
+      return [
+        providerDeclaration,
+        ...genProviderExportDeclaration(providerDeclaration.name!)
+      ]
     case Target.provider:
       const provider = genProvider(lazy)
       return [
@@ -230,24 +237,25 @@ export function gen(
     defaultLang
   )
 
-  const others = lazy
-    ? typeNodes
-        .filter(x => x[0] !== defaultLang)
-        .map(
-          ([file, node]) =>
-            [
-              file,
-              print([
-                ts.createExportAssignment(
-                  undefined,
-                  undefined,
-                  undefined,
-                  genRecordLiteral(node)
-                )
-              ])
-            ] as [string, string]
-        )
-    : []
+  const others =
+    lazy && target !== Target.type
+      ? typeNodes
+          .filter(x => x[0] !== defaultLang)
+          .map(
+            ([file, node]) =>
+              [
+                file,
+                print([
+                  ts.createExportAssignment(
+                    undefined,
+                    undefined,
+                    undefined,
+                    genRecordLiteral(node)
+                  )
+                ])
+              ] as [string, string]
+          )
+      : []
 
   const code = prettier.format(
     print([languageType, resourceType, ...exportDefault]),
