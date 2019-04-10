@@ -26,7 +26,8 @@ import {
   genResourceType,
   genLanguageType,
   genRecordLiteral,
-  genProviderExportDeclaration
+  genProviderExportDeclaration,
+  genProviderDeclaration
 } from './helper'
 import {
   createMissingRecordTypeDescriptor,
@@ -166,7 +167,7 @@ function genExportDefault(
     case Target.resource:
       return [genResourceExport(typeAlias.name, typeNodes)]
     case Target.type:
-      const providerDeclaration = genProvider(lazy)
+      const providerDeclaration = genProviderDeclaration(lazy)
       return [
         providerDeclaration,
         ...genProviderExportDeclaration(providerDeclaration.name!)

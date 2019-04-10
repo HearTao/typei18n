@@ -2,7 +2,6 @@
   "name": "typei18n",
   "version": "1.0.4",
   "description": "yet another i18n solution by codegen",
-  "main": "index.js",
   "scripts": {
     "build": "gulp",
     "prettier": "prettier --config ./src/prettier.json --write ./src/*.ts ./src/**/*.ts"
@@ -26,6 +25,7 @@
     "package.json",
     "README.md"
   ],
+  "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "bin": {
     "typei18n": "bin/typei18n"

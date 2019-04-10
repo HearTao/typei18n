@@ -170,6 +170,130 @@ export function genRecordLiteral(
   )
 }
 
+function genAsyncProviderDeclaration() {
+  return ts.createClassDeclaration(
+    undefined,
+    [
+      ts.createModifier(ts.SyntaxKind.ExportKeyword),
+      ts.createModifier(ts.SyntaxKind.DeclareKeyword)
+    ],
+    ts.createIdentifier('LazyI18nProvider'),
+    undefined,
+    undefined,
+    [
+      ts.createProperty(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.PrivateKeyword)],
+        ts.createIdentifier('maps'),
+        undefined,
+        undefined,
+        undefined
+      ),
+      ts.createProperty(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.PrivateKeyword)],
+        ts.createIdentifier('_lang'),
+        undefined,
+        undefined,
+        undefined
+      ),
+      ts.createConstructor(
+        undefined,
+        undefined,
+        [
+          ts.createParameter(
+            undefined,
+            undefined,
+            undefined,
+            ts.createIdentifier('maps'),
+            undefined,
+            ts.createTypeReferenceNode(ts.createIdentifier('Record'), [
+              ts.createTypeReferenceNode(
+                ts.createIdentifier('Language'),
+                undefined
+              ),
+              ts.createUnionTypeNode([
+                ts.createTypeReferenceNode(
+                  ts.createIdentifier('RootType'),
+                  undefined
+                ),
+                ts.createParenthesizedType(
+                  ts.createFunctionTypeNode(
+                    undefined,
+                    [],
+                    ts.createTypeReferenceNode(ts.createIdentifier('Promise'), [
+                      ts.createTypeReferenceNode(
+                        ts.createIdentifier('RootType'),
+                        undefined
+                      )
+                    ])
+                  )
+                )
+              ])
+            ]),
+            undefined
+          ),
+          ts.createParameter(
+            undefined,
+            undefined,
+            undefined,
+            ts.createIdentifier('_lang'),
+            undefined,
+            ts.createTypeReferenceNode(
+              ts.createIdentifier('Language'),
+              undefined
+            ),
+            undefined
+          )
+        ],
+        undefined
+      ),
+      ts.createProperty(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.ReadonlyKeyword)],
+        ts.createIdentifier('lang'),
+        undefined,
+        ts.createTypeReferenceNode(ts.createIdentifier('Language'), undefined),
+        undefined
+      ),
+      ts.createMethod(
+        undefined,
+        undefined,
+        undefined,
+        ts.createIdentifier('setLanguage'),
+        undefined,
+        undefined,
+        [
+          ts.createParameter(
+            undefined,
+            undefined,
+            undefined,
+            ts.createIdentifier('lang'),
+            undefined,
+            ts.createTypeReferenceNode(
+              ts.createIdentifier('Language'),
+              undefined
+            ),
+            undefined
+          )
+        ],
+        ts.createTypeReferenceNode(ts.createIdentifier('Promise'), [
+          ts.createKeywordTypeNode(ts.SyntaxKind.VoidKeyword)
+        ]),
+        undefined
+      ),
+      ts.createProperty(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.ReadonlyKeyword)],
+        ts.createIdentifier('t'),
+        undefined,
+        ts.createTypeReferenceNode(ts.createIdentifier('RootType'), undefined),
+        undefined
+      )
+    ]
+  )
+}
+
 function genAsyncProperty(key: string) {
   return ts.createParen(
     ts.createArrowFunction(
@@ -271,6 +395,114 @@ export function genResourceExport(
     undefined,
     undefined,
     genResource(type, typeNodes, false, '')
+  )
+}
+
+function genSyncProviderDclearation() {
+  return ts.createClassDeclaration(
+    undefined,
+    [
+      ts.createModifier(ts.SyntaxKind.ExportKeyword),
+      ts.createModifier(ts.SyntaxKind.DeclareKeyword)
+    ],
+    ts.createIdentifier('I18nProvider'),
+    undefined,
+    undefined,
+    [
+      ts.createProperty(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.PrivateKeyword)],
+        ts.createIdentifier('maps'),
+        undefined,
+        undefined,
+        undefined
+      ),
+      ts.createProperty(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.PrivateKeyword)],
+        ts.createIdentifier('_lang'),
+        undefined,
+        undefined,
+        undefined
+      ),
+      ts.createConstructor(
+        undefined,
+        undefined,
+        [
+          ts.createParameter(
+            undefined,
+            undefined,
+            undefined,
+            ts.createIdentifier('maps'),
+            undefined,
+            ts.createTypeReferenceNode(ts.createIdentifier('Record'), [
+              ts.createTypeReferenceNode(
+                ts.createIdentifier('Language'),
+                undefined
+              ),
+              ts.createTypeReferenceNode(
+                ts.createIdentifier('RootType'),
+                undefined
+              )
+            ]),
+            undefined
+          ),
+          ts.createParameter(
+            undefined,
+            undefined,
+            undefined,
+            ts.createIdentifier('_lang'),
+            undefined,
+            ts.createTypeReferenceNode(
+              ts.createIdentifier('Language'),
+              undefined
+            ),
+            undefined
+          )
+        ],
+        undefined
+      ),
+      ts.createProperty(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.ReadonlyKeyword)],
+        ts.createIdentifier('lang'),
+        undefined,
+        ts.createTypeReferenceNode(ts.createIdentifier('Language'), undefined),
+        undefined
+      ),
+      ts.createMethod(
+        undefined,
+        undefined,
+        undefined,
+        ts.createIdentifier('setLanguage'),
+        undefined,
+        undefined,
+        [
+          ts.createParameter(
+            undefined,
+            undefined,
+            undefined,
+            ts.createIdentifier('lang'),
+            undefined,
+            ts.createTypeReferenceNode(
+              ts.createIdentifier('Language'),
+              undefined
+            ),
+            undefined
+          )
+        ],
+        ts.createKeywordTypeNode(ts.SyntaxKind.VoidKeyword),
+        undefined
+      ),
+      ts.createProperty(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.ReadonlyKeyword)],
+        ts.createIdentifier('t'),
+        undefined,
+        ts.createTypeReferenceNode(ts.createIdentifier('RootType'), undefined),
+        undefined
+      )
+    ]
   )
 }
 
@@ -683,6 +915,10 @@ function genAsyncProvider() {
 
 export function genProvider(lazy: boolean) {
   return lazy ? genAsyncProvider() : genSyncProvider()
+}
+
+export function genProviderDeclaration(lazy: boolean) {
+  return lazy ? genAsyncProviderDeclaration() : genSyncProviderDclearation()
 }
 
 export function genProviderExportDeclaration(provider: ts.Identifier) {
