@@ -1,6 +1,6 @@
 {
   "name": "typei18n",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "yet another i18n solution by codegen",
   "main": "index.js",
   "scripts": {
