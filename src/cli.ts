@@ -7,6 +7,10 @@ import { highlight } from 'cardinal'
 import { watch as chokidar } from 'chokidar'
 import * as osLocale from 'os-locale'
 import i18n, { Language } from './locales'
+import { NamedValue, YamlNode } from './types';
+import * as yaml from 'yaml'
+import * as prettier from 'prettier'
+import * as prettierOptions from './prettier.json'
 
 function mapLocaleToLanguage(l: string): Language {
   switch (l) {
@@ -29,12 +33,18 @@ function handler(_data?: string) {
     const lazy = argv[`lazy`] as boolean
     const defaultLanguage = argv[`default`] as string
 
-    // i18n.setLanguage(mapLocaleToLanguage(osLocale.sync()))
+    const prettierConfig = prettierOptions as prettier.Options
 
-    const files = fs
+    i18n.setLanguage(mapLocaleToLanguage(osLocale.sync()))
+
+    const files: NamedValue<YamlNode>[] = fs
       .readdirSync(input)
       .filter(x => x.endsWith('.yaml'))
       .map(x => path.join(input, x))
+      .map(x => ({
+        name: path.basename(x, '.yaml'),
+        value: yaml.parse(fs.readFileSync(x).toString())
+      }))
 
     if (watch) {
       run()
@@ -73,7 +83,7 @@ function handler(_data?: string) {
 
       const filepath: string = path.resolve(output)
 
-      fs.writeFileSync(path.join(filepath, 'index.ts'), result, 'utf8')
+      fs.writeFileSync(path.join(filepath, 'index.ts'), prettier.format(result, prettierConfig), 'utf8')
       console.log(`Done at ${filepath}`)
     }
 
@@ -97,9 +107,9 @@ function handler(_data?: string) {
 
       const filepath: string = path.resolve(output)
 
-      fs.writeFileSync(path.join(filepath, 'index.ts'), index, 'utf8')
+      fs.writeFileSync(path.join(filepath, 'index.ts'), prettier.format(index, prettierConfig), 'utf8')
       others.forEach(([file, code]) => {
-        fs.writeFileSync(path.join(filepath, `${file}.ts`), code, 'utf8')
+        fs.writeFileSync(path.join(filepath, `${file}.ts`), prettier.format(code, prettierConfig), 'utf8')
       })
 
       console.log(`Done at ${filepath}`)

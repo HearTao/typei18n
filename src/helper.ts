@@ -3,7 +3,8 @@ import {
   RecordTypeDescriptor,
   TypeDescriptorKind,
   ArgType,
-  ArgKind
+  ArgKind,
+  NamedValue
 } from './types'
 import { isParamArgType } from './utils'
 
@@ -348,19 +349,19 @@ function genAsyncProperty(key: string) {
 
 function genResource(
   type: ts.Identifier,
-  typeNodes: ReadonlyArray<[string, RecordTypeDescriptor]>,
+  typeNodes: NamedValue<RecordTypeDescriptor>[],
   lazy: boolean,
   lang: string
 ) {
   return ts.createParen(
     ts.createAsExpression(
       ts.createObjectLiteral(
-        typeNodes.map(([file, node]) =>
+        typeNodes.map(({ name, value }) =>
           ts.createPropertyAssignment(
-            ts.createStringLiteral(file),
-            !lazy || lang === file
-              ? genRecordLiteral(node)
-              : genAsyncProperty(file)
+            ts.createStringLiteral(name),
+            !lazy || lang === name
+              ? genRecordLiteral(value)
+              : genAsyncProperty(name)
           )
         ),
         false
@@ -388,7 +389,7 @@ function genResource(
 
 export function genResourceExport(
   type: ts.Identifier,
-  typeNodes: ReadonlyArray<[string, RecordTypeDescriptor]>
+  typeNodes: NamedValue<RecordTypeDescriptor>[]
 ): ts.ExportAssignment {
   return ts.createExportAssignment(
     undefined,
@@ -947,7 +948,7 @@ export function genProviderExportDeclaration(provider: ts.Identifier) {
 export function genProviderExport(
   type: ts.Identifier,
   provider: ts.Identifier,
-  typeNodes: ReadonlyArray<[string, RecordTypeDescriptor]>,
+  typeNodes: NamedValue<RecordTypeDescriptor>[],
   lazy: boolean,
   lang: string
 ) {

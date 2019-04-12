@@ -52,7 +52,7 @@
     "through2": "^3.0.1",
     "ts-loader": "^5.3.3",
     "ts-node": "^8.0.3",
-    "typei18n": "^1.0.3",
+    "typei18n": "^1.0.5",
     "typescript": "^3.4.1",
     "webpack": "^4.29.6",
     "webpack-merge": "^4.2.1",

@@ -68,3 +68,5 @@ dist/
 .vscode/
 
 src/locales/*.ts
+
+*.txt

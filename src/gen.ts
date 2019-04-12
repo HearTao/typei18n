@@ -1,11 +1,6 @@
-import * as yaml from 'yaml'
-import * as fs from 'fs'
-import * as path from 'path'
 import * as ts from 'typescript'
-import * as prettier from 'prettier'
-import * as prettierConfig from './prettier.json'
 
-import { YamlNode, RecordTypeDescriptor, Target, Context } from './types'
+import { YamlNode, RecordTypeDescriptor, Target, Context, NamedValue } from './types'
 import {
   isStringType,
   isCallType,
@@ -159,7 +154,7 @@ function print(nodes: ts.Node[]) {
 function genExportDefault(
   target: Target,
   typeAlias: ts.TypeAliasDeclaration,
-  typeNodes: [string, RecordTypeDescriptor][],
+  typeNodes: NamedValue<RecordTypeDescriptor>[],
   lazy: boolean,
   defaultLang: string
 ) {
@@ -187,36 +182,28 @@ function genExportDefault(
   }
 }
 
-export function gen(filenames: string[], target?: Target): string
+export function gen(files: NamedValue<YamlNode>[], target?: Target): string
 export function gen(
-  filenames: string[],
+  files: NamedValue<YamlNode>[],
   target: Target | undefined,
   lazy: true,
   defaultLanguage: string
 ): [string, [string, string][]]
 export function gen(
-  filenames: string[],
+  files: NamedValue<YamlNode>[],
   target: Target = Target.resource,
   lazy?: boolean,
   defaultLanguage?: string
 ): [string, [string, string][]] | string {
   const context: Context = { errors: [], paths: [] }
 
-  const files = filenames.map(
-    file =>
-      [path.basename(file, '.yaml'), fs.readFileSync(file).toString()] as [
-        string,
-        string
-      ]
-  )
-  const typeNodes = files
-    .map(([f, x]) => [f, yaml.parse(x) as YamlNode])
+  const typeNodes: NamedValue<RecordTypeDescriptor>[] = files
     .map(
-      ([f, x]) => [f, toTypeNode(x, context)] as [string, RecordTypeDescriptor]
+      ({name, value}) => ({ name, value: toTypeNode(value, context) })
     )
 
   const merged = typeNodes.reduce<RecordTypeDescriptor>(
-    (prev, [_, next]) => merge(prev, next, context),
+    (prev, { value }) => merge(prev, value, context),
     createMissingRecordTypeDescriptor()
   )
 
@@ -225,7 +212,7 @@ export function gen(
   }
 
   const rootType = 'RootType'
-  const langs = files.map(first)
+  const langs = files.map(x => x.name)
   const defaultLang = defaultLanguage || first(langs)
   const languageType = genLanguageType(langs)
   const resourceType = genResourceType(rootType, genRecordType(merged))
@@ -241,26 +228,23 @@ export function gen(
   const others =
     lazy && target !== Target.type
       ? typeNodes
-          .filter(x => x[0] !== defaultLang)
+          .filter(x => x.name !== defaultLang)
           .map(
-            ([file, node]) =>
+            ({name, value}) =>
               [
-                file,
+                name,
                 print([
                   ts.createExportAssignment(
                     undefined,
                     undefined,
                     undefined,
-                    genRecordLiteral(node)
+                    genRecordLiteral(value)
                   )
                 ])
               ] as [string, string]
           )
       : []
 
-  const code = prettier.format(
-    print([languageType, resourceType, ...exportDefault]),
-    prettierConfig as prettier.Options
-  )
+  const code = print([languageType, resourceType, ...exportDefault])
   return lazy ? ([code, others] as [string, [string, string][]]) : code
 }

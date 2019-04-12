@@ -3728,14 +3728,16 @@ typedarray@^0.0.6:
   resolved "https://registry.npmjs.org/typedarray/-/typedarray-0.0.6.tgz#867ac74e3864187b1d3d47d996a78ec5c8830777"
   integrity sha1-hnrHTjhkGHsdPUfZlqeOxciDB3c=
 
-typei18n@^1.0.3:
-  version "1.0.3"
-  resolved "https://registry.npmjs.org/typei18n/-/typei18n-1.0.3.tgz#ffe8724c147da27090fc53efb03f8733db3d6f64"
-  integrity sha512-rySkUZkcI72SKCJ10DYtz4UeHY+25WISXovjZzpoV2HpIPkDUpMfDdyLlQknTyDFsTX5XhjsouK246Zz92j4VA==
+typei18n@^1.0.5:
+  version "1.0.5"
+  resolved "https://registry.npmjs.org/typei18n/-/typei18n-1.0.5.tgz#aba859678fa8d94c6cd1d80a59564d18315faeaa"
+  integrity sha512-96lAiSwOY61Fo/+mYHqnoGqrRgS5SyakeHmucHIWVz0BbnVeQC51kxApdED85z7b85+7snuiAw/hqCD0Q2JHHQ==
   dependencies:
+    "@types/os-locale" "^2.1.0"
     cardinal "^2.1.1"
     chokidar "^2.1.5"
     get-stdin "^6.0.0"
+    os-locale "^3.1.0"
     yaml "^1.4.0"
     yargs "^13.2.2"
 

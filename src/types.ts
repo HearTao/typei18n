@@ -58,3 +58,8 @@ export interface Context {
   errors: string[]
   paths: string[]
 }
+
+export interface NamedValue<T = string> {
+  name: string
+  value: T
+}

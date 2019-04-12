@@ -6,10 +6,12 @@ const config = require('./webpack.config')
 const webpack = require('webpack-stream')
 const through = require('through2')
 const vinyl = require('vinyl')
+const yaml = require('yaml')
 
 function createI18nPipe(gen) {
   return through.obj(function(vinylFile, encoding, callback) {
     const files = fs.readdirSync(vinylFile.path).filter(x => path.extname(x) === '.yaml').map(x => path.join(vinylFile.path, x))
+      .map(x => ({ name: path.basename(x, '.yaml'), value: yaml.parse(fs.readFileSync(x).toString())}))
     const content = gen(files, 'provider')
     const file = new vinyl({
       path: './index.ts',
