@@ -3728,10 +3728,10 @@ typedarray@^0.0.6:
   resolved "https://registry.npmjs.org/typedarray/-/typedarray-0.0.6.tgz#867ac74e3864187b1d3d47d996a78ec5c8830777"
   integrity sha1-hnrHTjhkGHsdPUfZlqeOxciDB3c=
 
-typei18n@^1.0.5:
-  version "1.0.5"
-  resolved "https://registry.npmjs.org/typei18n/-/typei18n-1.0.5.tgz#aba859678fa8d94c6cd1d80a59564d18315faeaa"
-  integrity sha512-96lAiSwOY61Fo/+mYHqnoGqrRgS5SyakeHmucHIWVz0BbnVeQC51kxApdED85z7b85+7snuiAw/hqCD0Q2JHHQ==
+typei18n@^1.0.6:
+  version "1.0.6"
+  resolved "https://registry.npmjs.org/typei18n/-/typei18n-1.0.6.tgz#096a03513ea36384eb8b3f4a3f4489fb7efe3808"
+  integrity sha512-lDdHDp9TLzCciZt2nMEdQL6uj27D+OT+nev3Cqt96BbTm8QugMCM7wbzOkE3Jg8H+agHWIlLG9oLC+Xey7cRQg==
   dependencies:
     "@types/os-locale" "^2.1.0"
     cardinal "^2.1.1"
