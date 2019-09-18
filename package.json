@@ -3,6 +3,7 @@
   "version": "1.0.6",
   "description": "yet another i18n solution by codegen",
   "scripts": {
+    "start": "tsc -w",
     "build": "gulp",
     "test": "jest",
     "prettier": "prettier --config ./src/prettier.json --write ./src/*.ts ./src/**/*.ts"

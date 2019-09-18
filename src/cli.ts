@@ -37,23 +37,14 @@ function handler(_data?: string) {
 
     i18n.setLanguage(mapLocaleToLanguage(osLocale.sync()))
 
-    const files: NamedValue<YamlNode>[] = fs
-      .readdirSync(input)
-      .filter(x => x.endsWith('.yaml'))
-      .map(x => path.join(input, x))
-      .map(x => ({
-        name: path.basename(x, '.yaml'),
-        value: yaml.parse(fs.readFileSync(x).toString())
-      }))
-
     if (watch) {
-      run()
+      run(false)
       console.log(`Waiting for file change\n`)
-      chokidar(`${input}/**/*.yaml`, { ignored: /(^|[\/\\])\../ }).on(
+      chokidar(`./**/*.yaml`, { ignored: /(^|[\/\\])\../, cwd: input }).on(
         'change',
         file => {
           console.log(`${file} changed, processing...`)
-          run()
+          run(false)
           console.log(`Waiting for file change\n`)
         }
       )
@@ -61,7 +52,7 @@ function handler(_data?: string) {
       run()
     }
 
-    function run(): void {
+    function run(isThrow: boolean = true): void {
       try {
         if (lazy) {
           generateLazy()
@@ -69,11 +60,13 @@ function handler(_data?: string) {
           generate()
         }
       } catch (e) {
-        throw new Error(e)
+        if(isThrow) throw new Error(e)
+        console.log(`[typei18n Error] ${e.message}`)
       }
     }
 
     function generate() {
+      const files = getFiles(input)
       const result = gen(files, target)
 
       if (!output) {
@@ -88,6 +81,7 @@ function handler(_data?: string) {
     }
 
     function generateLazy() {
+      const files = getFiles(input)
       const [index, others] = gen(files, target, true, defaultLanguage)
 
       if (!output) {
@@ -115,6 +109,17 @@ function handler(_data?: string) {
       console.log(`Done at ${filepath}`)
     }
   }
+}
+
+function getFiles(input: string): NamedValue<YamlNode>[] {
+  return fs
+    .readdirSync(input)
+    .filter(x => x.endsWith('.yaml'))
+    .map(x => path.join(input, x))
+    .map(x => ({
+      name: path.basename(x, '.yaml'),
+      value: yaml.parse(fs.readFileSync(x).toString())
+    }))
 }
 
 function handleInitial(argv: yargs.Arguments): void {
