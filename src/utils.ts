@@ -29,6 +29,15 @@ export function arrayEq<T>(a: T[], b: T[], cb: (a: T) => string): boolean {
   return b.every(x => set.has(cb(x)))
 }
 
+export function diffArray<T>(a: Set<T>, b: Set<T>): Set<T> {
+  const diff: Set<T> = new Set
+  a.forEach(val => {
+    if(b.has(val)) return
+    diff.add(val)
+  })
+  return diff
+}
+
 export function isParamArgType(v: ArgType): v is ParamArg {
   return v.kind === ArgKind.param
 }

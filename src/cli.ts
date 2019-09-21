@@ -61,7 +61,8 @@ function handler(_data?: string) {
         }
       } catch (e) {
         if(isThrow) throw new Error(e)
-        console.log(`[typei18n Error] ${e.message}`)
+        // console.log(e.message)
+        console.error(e)
       }
     }
 
@@ -118,7 +119,7 @@ function getFiles(input: string): NamedValue<YamlNode>[] {
     .map(x => path.join(input, x))
     .map(x => ({
       name: path.basename(x, '.yaml'),
-      value: yaml.safeLoad (fs.readFileSync(x, 'utf-8'))
+      value: yaml.safeLoad(fs.readFileSync(x, 'utf-8'))
     }))
 }
 
