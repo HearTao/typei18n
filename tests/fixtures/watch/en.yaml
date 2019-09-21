@@ -1,0 +1,10 @@
+dialog:
+  ok: ok
+  cancel: cancel
+  what: fucking
+  do: what are you {{ what }} doing {{ name }} ?
+  hehe:
+    a: 1
+    b: 2
+    c: 3
+    d: 4

@@ -1,0 +1,26 @@
+name: Release versions
+
+on: 
+  push:
+    branches:
+      - release/*
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 1
+        ref: ${{ github.ref }}
+    - uses: actions/setup-node@v1
+      with:
+        registry-url: 'https://registry.npmjs.org'
+    - name: Build
+      run: npm i && npm run build && npx bin-file-gen -y
+    - uses: HairyRabbit/actions/release-tag@latest
+      with:
+        context: 'dist'
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

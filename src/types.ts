@@ -17,7 +17,7 @@ export interface ParamArg {
 
 export type ArgType = LiteralArg | ParamArg
 
-export enum TypeDescriptorKind {
+export const enum TypeDescriptorKind {
   string,
   call,
   record
@@ -55,8 +55,9 @@ export enum Target {
 }
 
 export interface Context {
-  errors: string[]
+  errors: Set<string>
   paths: string[]
+  missing: Map<string, { missing: Set<string>, exists: Set<string> }>
 }
 
 export interface NamedValue<T = string> {

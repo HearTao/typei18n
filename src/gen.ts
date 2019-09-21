@@ -10,7 +10,8 @@ import {
   first,
   getCurrentPath,
   inPathContext,
-  isMissingRecordTypeDescriptor
+  isMissingRecordTypeDescriptor,
+  diffArray
 } from './utils'
 import {
   genRecordType,
@@ -35,7 +36,6 @@ import i18n from './locales'
 
 function toTypeNode(node: YamlNode, context: Context): RecordTypeDescriptor {
   const record = createRecordTypeDescriptor({})
-
   Object.entries(node).forEach(([key, value]) => {
     switch (typeof value) {
       case 'number':
@@ -54,7 +54,7 @@ function toTypeNode(node: YamlNode, context: Context): RecordTypeDescriptor {
         )
         break
       default:
-        context.errors.push(i18n.t.errors.unexpected_value({ key, value }))
+        context.errors.add(i18n.t.errors.unexpected_value({ key, value }))
         break
     }
   })
@@ -65,20 +65,21 @@ function toTypeNode(node: YamlNode, context: Context): RecordTypeDescriptor {
 function merge(
   target: RecordTypeDescriptor,
   source: RecordTypeDescriptor,
+  name: string,
   context: Context
 ): RecordTypeDescriptor {
   Object.entries(target.value).forEach(([key, value]) => {
     if (!(key in source.value)) {
-      context.errors.push(
-        i18n.t.errors.key_missing_in_path({
-          key,
-          path: getCurrentPath(context)
-        })
-      )
+      const miss = context.missing.get(`${getCurrentPath(context)}.${key}`)
+      if(undefined === miss) {
+        context.missing.set(`${getCurrentPath(context)}.${key}`, { exists: new Set, missing: new Set([ name ]) })
+      } else {
+        miss.missing.add(name)
+      }
       return
     }
     if (source.value[key].kind !== value.kind) {
-      context.errors.push(
+      context.errors.add(
         i18n.t.errors.type_of_path_is_unexpected({
           path: `${getCurrentPath(context)}.${key}`,
           actually: source.value[key].kind,
@@ -94,12 +95,12 @@ function merge(
       if (isMissingRecordTypeDescriptor(target)) {
         target.value[key] = source.value[key]
       } else {
-        context.errors.push(
-          i18n.t.errors.key_missing_in_path({
-            key,
-            path: getCurrentPath(context)
-          })
-        )
+        const miss = context.missing.get(`${getCurrentPath(context)}.${key}`)
+        if(undefined === miss) {
+          context.missing.set(`${getCurrentPath(context)}.${key}`, { exists: new Set([ name ]), missing: new Set })
+        } else {
+          miss.exists.add(name)
+        }
       }
       return
     }
@@ -111,7 +112,7 @@ function merge(
       const sourceArgs = value.body.filter(isParamArgType)
 
       if (!arrayEq(targetArgs, sourceArgs, x => x.name)) {
-        context.errors.push(
+        context.errors.add(
           i18n.t.errors.args_is_different({
             path: `${getCurrentPath(context)}.${key}`,
             one: targetArgs.map(x => x.name).join(','),
@@ -121,9 +122,9 @@ function merge(
         return
       }
     } else if (isRecordType(targetValue) && isRecordType(value)) {
-      inPathContext(context, key, ctx => merge(targetValue, value, ctx))
+      inPathContext(context, key, ctx => merge(targetValue, value, name, ctx))
     } else {
-      context.errors.push(
+      context.errors.add(
         i18n.t.errors.type_of_path_is_unexpected({
           path: `${getCurrentPath(context)}.${key}`,
           actually: value.kind,
@@ -195,20 +196,38 @@ export function gen(
   lazy?: boolean,
   defaultLanguage?: string
 ): [string, [string, string][]] | string {
-  const context: Context = { errors: [], paths: [] }
+  const context: Context = { errors: new Set, paths: [], missing: new Map }
 
+  const names = new Set(files.map(({ name }) => name))
   const typeNodes: NamedValue<RecordTypeDescriptor>[] = files
     .map(
       ({name, value}) => ({ name, value: toTypeNode(value, context) })
     )
 
   const merged = typeNodes.reduce<RecordTypeDescriptor>(
-    (prev, { value }) => merge(prev, value, context),
+    (prev, { name, value }) => merge(prev, value, name, context),
     createMissingRecordTypeDescriptor()
   )
 
-  if (context.errors.length) {
-    throw new Error(context.errors.join('\n'))
+  if(context.missing.size) {
+    context.missing.forEach(({ missing, exists }, path) => {
+      const miss = exists.size ? [...diffArray(names, exists)].join(',') : [...missing].join(',')
+      context.errors.add(
+        i18n.t.errors.key_missing_in_path({
+          path,
+          missing: miss
+        })
+      )
+    })
+  }
+  
+  if (context.errors.size) {
+    throw new Error(`
+Errors:
+${[...context.errors].map((msg, idx) => {
+  return `  ${idx + 1}. ${msg}`
+}).join('\n')}
+`)
   }
 
   const rootType = 'RootType'
