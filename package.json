@@ -4,7 +4,9 @@
   "description": "yet another i18n solution by codegen",
   "scripts": {
     "start": "tsc -w",
+    "start:locales": "npm run build:locales -- -w",
     "build": "gulp",
+    "build:locales": "node bin/typei18n src/locales -o src/locales",
     "test": "jest",
     "prettier": "prettier --config ./src/prettier.json --write ./src/*.ts ./src/**/*.ts"
   },
@@ -37,6 +39,7 @@
     "cardinal": "^2.1.1",
     "chokidar": "^2.1.5",
     "get-stdin": "^6.0.0",
+    "js-yaml": "^3.13.1",
     "os-locale": "^3.1.0",
     "yaml": "^1.4.0",
     "yargs": "^13.2.2"
@@ -45,6 +48,7 @@
     "@types/chokidar": "^2.1.3",
     "@types/get-stdin": "^5.0.1",
     "@types/jest": "^24.0.18",
+    "@types/js-yaml": "^3.12.1",
     "@types/node": "^11.13.0",
     "@types/prettier": "^1.16.1",
     "@types/yaml": "^1.0.2",

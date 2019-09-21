@@ -7,8 +7,8 @@ import { highlight } from 'cardinal'
 import { watch as chokidar } from 'chokidar'
 import * as osLocale from 'os-locale'
 import i18n, { Language } from './locales'
-import { NamedValue, YamlNode } from './types';
-import * as yaml from 'yaml'
+import { NamedValue, YamlNode } from './types'
+import * as yaml from 'js-yaml'
 import * as prettier from 'prettier'
 import * as prettierOptions from './prettier.json'
 
@@ -118,7 +118,7 @@ function getFiles(input: string): NamedValue<YamlNode>[] {
     .map(x => path.join(input, x))
     .map(x => ({
       name: path.basename(x, '.yaml'),
-      value: yaml.parse(fs.readFileSync(x).toString())
+      value: yaml.safeLoad (fs.readFileSync(x, 'utf-8'))
     }))
 }
 
