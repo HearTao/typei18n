@@ -36,28 +36,35 @@ function handler(_data?: string) {
     const prettierConfig = prettierOptions as prettier.Options
 
     i18n.setLanguage(mapLocaleToLanguage(osLocale.sync()))
+    const files = getFiles(input)
 
     if (watch) {
-      run(false)
+      run(files, false)
+      const cache = createCache(files)
+      console.log(cache)
       console.log(`Waiting for file change\n`)
       chokidar(`./**/*.yaml`, { ignored: /(^|[\/\\])\../, cwd: input }).on(
         'change',
         file => {
           console.log(`${file} changed, processing...`)
-          run(false)
+          cache.set(
+            path.basename(file, path.extname(file)), 
+            yaml.safeLoad(fs.readFileSync(path.join(input, file), 'utf-8'))
+          )
+          run(exportCache(cache), false)
           console.log(`Waiting for file change\n`)
         }
       )
     } else {
-      run()
+      run(files)
     }
 
-    function run(isThrow: boolean = true): void {
+    function run(files: NamedValue<YamlNode>[], isThrow: boolean = true): void {
       try {
         if (lazy) {
-          generateLazy()
+          generateLazy(files)
         } else {
-          generate()
+          generate(files)
         }
       } catch (e) {
         if(isThrow) throw new Error(e)
@@ -66,8 +73,7 @@ function handler(_data?: string) {
       }
     }
 
-    function generate() {
-      const files = getFiles(input)
+    function generate(files: NamedValue<YamlNode>[]) {
       const result = gen(files, target)
 
       if (!output) {
@@ -81,8 +87,7 @@ function handler(_data?: string) {
       console.log(`Done at ${filepath}`)
     }
 
-    function generateLazy() {
-      const files = getFiles(input)
+    function generateLazy(files: NamedValue<YamlNode>[]) {
       const [index, others] = gen(files, target, true, defaultLanguage)
 
       if (!output) {
@@ -121,6 +126,22 @@ function getFiles(input: string): NamedValue<YamlNode>[] {
       name: path.basename(x, '.yaml'),
       value: yaml.safeLoad(fs.readFileSync(x, 'utf-8'))
     }))
+}
+
+function createCache(files: NamedValue<YamlNode>[]): Map<string, string> {
+  const cache = new Map
+  files.forEach(({ name, value }) => {
+    cache.set(name, value)
+  })
+  return cache
+}
+
+function exportCache(cache: Map<string, string>): NamedValue<YamlNode>[] {
+  const acc: NamedValue<YamlNode>[] = []
+  cache.forEach((value, name) => {
+    acc.push({ name, value })
+  })
+  return acc
 }
 
 function handleInitial(argv: yargs.Arguments): void {
