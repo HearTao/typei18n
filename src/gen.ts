@@ -56,13 +56,6 @@ function toTypeNode(node: YamlNode, name: string, context: Context): RecordTypeD
         break
       default:
         createError(context.errors, ErrorType.UnexpectedValueType, `${getCurrentPath(context)}.${key}`, [ name, value ])
-        // context.errors.set('', {
-        //   type: ErrorType.UnexpectedValueType,
-        //   path: `${getCurrentPath(context)}.${key}`,
-        //   payload: value
-        // })
-        // context.untype.add(i18n.t.errors.unexpected_value({ key: `${getCurrentPath(context)}.${key}`, value }))
-        // context.errors.add(i18n.t.errors.unexpected_value({ key: `${getCurrentPath(context)}.${key}`, value }))
         break
     }
   })
@@ -255,6 +248,7 @@ export function gen(
   defaultLanguage?: string
 ): [string, [string, string][]] | string {
   const context: Context = { errors: new Map, paths: [] }
+
   const typeNodes: NamedValue<RecordTypeDescriptor>[] = files
     .map(
       ({name, value}) => ({ name, value: toTypeNode(value, name, context) })
