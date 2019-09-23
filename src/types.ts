@@ -18,9 +18,9 @@ export interface ParamArg {
 export type ArgType = LiteralArg | ParamArg
 
 export const enum TypeDescriptorKind {
-  string,
-  call,
-  record
+  string = 'string',
+  call = 'call',
+  record = 'record'
 }
 
 export interface StringTypeDescriptor {
@@ -58,6 +58,7 @@ export interface Context {
   errors: Set<string>
   paths: string[]
   missing: Map<string, { missing: Set<string>, exists: Set<string> }>
+  unkind: Set<string>
 }
 
 export interface NamedValue<T = string> {

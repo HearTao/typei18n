@@ -8,7 +8,8 @@ import {
   ParamArg,
   ArgKind,
   Context,
-  MissingRecordTypeDescriptor
+  MissingRecordTypeDescriptor,
+  NamedValue
 } from './types'
 
 export function isStringType(v: TypeDescriptor): v is StringTypeDescriptor {
@@ -47,6 +48,22 @@ export function first<T>(v: T[]): T {
     throw new Error('index out of range')
   }
   return v[0]
+}
+
+export function getPathNodes(nodes: NamedValue<RecordTypeDescriptor>[], path: string): NamedValue<TypeDescriptor>[] {
+  const paths = path.split('.')
+
+  return nodes.map(node => {
+    const name = node.name
+    const record = paths.reduce<TypeDescriptor>((node, path) => {
+      if(!isRecordType(node)) throw new Error('not record')
+      return node.value[path]
+    }, node.value)
+    return {
+      name,
+      value: record
+    }
+  })
 }
 
 export function getCurrentPath(context: Context) {

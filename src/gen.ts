@@ -11,7 +11,8 @@ import {
   getCurrentPath,
   inPathContext,
   isMissingRecordTypeDescriptor,
-  diffArray
+  diffArray,
+  getPathNodes
 } from './utils'
 import {
   genRecordType,
@@ -79,13 +80,7 @@ function merge(
       return
     }
     if (source.value[key].kind !== value.kind) {
-      context.errors.add(
-        i18n.t.errors.type_of_path_is_unexpected({
-          path: `${getCurrentPath(context)}.${key}`,
-          actually: source.value[key].kind,
-          should: value.kind
-        })
-      )
+      context.unkind.add(`${getCurrentPath(context)}.${key}`)
       return
     }
   })
@@ -124,13 +119,7 @@ function merge(
     } else if (isRecordType(targetValue) && isRecordType(value)) {
       inPathContext(context, key, ctx => merge(targetValue, value, name, ctx))
     } else {
-      context.errors.add(
-        i18n.t.errors.type_of_path_is_unexpected({
-          path: `${getCurrentPath(context)}.${key}`,
-          actually: value.kind,
-          should: targetValue.kind
-        })
-      )
+      context.unkind.add(`${getCurrentPath(context)}.${key}`)
       return
     }
   })
@@ -196,13 +185,15 @@ export function gen(
   lazy?: boolean,
   defaultLanguage?: string
 ): [string, [string, string][]] | string {
-  const context: Context = { errors: new Set, paths: [], missing: new Map }
+  const context: Context = { errors: new Set, paths: [], missing: new Map, unkind: new Set }
 
   const names = new Set(files.map(({ name }) => name))
   const typeNodes: NamedValue<RecordTypeDescriptor>[] = files
     .map(
       ({name, value}) => ({ name, value: toTypeNode(value, context) })
     )
+  
+  // console.log(require('util').inspect(typeNodes, { depth: null }))
 
   const merged = typeNodes.reduce<RecordTypeDescriptor>(
     (prev, { name, value }) => merge(prev, value, name, context),
@@ -220,13 +211,36 @@ export function gen(
       )
     })
   }
+
+  if(context.unkind.size) {
+    context.unkind.forEach((_, path) => {
+      const out: string[] = []
+      
+      getPathNodes(typeNodes, path).reduce<Map<string, string[]>>((acc, { name, value }) => {
+        const { kind } = value
+        const arr = acc.get(kind)
+        if(!arr) acc.set(kind, [ name ])
+        else arr.push(name)
+        return acc
+      }, new Map).forEach((names, kind) => {
+        out.push(`    - ${kind} (${names.join(',')})`)
+      })
+
+      context.errors.add(
+        i18n.t.errors.type_of_path_is_unexpected({
+          path,
+          types: '\n' + out.join('\n')
+        })
+      )
+    })
+  }
+
   
   if (context.errors.size) {
     throw new Error(`
 Errors:
-${[...context.errors].map((msg, idx) => {
-  return `  ${idx + 1}. ${msg}`
-}).join('\n')}
+
+${[...context.errors].map((msg, idx) => `${idx + 1}. ${msg}`).join('\n')}
 `)
   }
 

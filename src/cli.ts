@@ -61,8 +61,8 @@ function handler(_data?: string) {
         }
       } catch (e) {
         if(isThrow) throw new Error(e)
-        // console.log(e.message)
-        console.error(e)
+        console.log(e.message)
+        // console.error(e)
       }
     }
 
