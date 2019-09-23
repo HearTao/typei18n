@@ -1,5 +1,5 @@
 errors:
-  unexpected_value: "{{ key }} 为非预期的值: {{ value }}"
+  unexpected_value: "{{ name }} 的 {{ path }} 为非预期的值: {{ value }}, 类型：{{ type }}"
   key_missing_in_path: "{{ path }} 节点不匹配, 在 {{ missing }} 中未找到"
   type_of_path_is_unexpected: "{{ path }} 节点类型不匹配: {{ types }}"
   args_is_different: "{{ path }} 的参数的类型不同: {{ args }}"

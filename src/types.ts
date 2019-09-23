@@ -1,6 +1,6 @@
 export type YamlNode = string | number | { [v: string]: YamlNode }
 
-export enum ArgKind {
+export const enum ArgKind {
   literal = 'literal',
   param = 'param'
 }
@@ -48,18 +48,30 @@ export type TypeDescriptor =
   | RecordTypeDescriptor
   | MissingRecordTypeDescriptor
 
-export enum Target {
+export const enum Target {
   resource = 'resource',
   provider = 'provider',
   type = 'type'
 }
 
+export const enum MismatchedKeyType { LHS, RHS }
+
+export const enum ErrorType {
+  UnexpectedValueType,
+  NotFoundKey,
+  MismatchedKind,
+  MismatchedArguments
+}
+
+export type ErrorRecord =
+  | { type: ErrorType.UnexpectedValueType, path: string, payload: [ string, string ] }
+  | { type: ErrorType.MismatchedKind, path: string }
+  | { type: ErrorType.MismatchedArguments, path: string }
+  | { type: ErrorType.NotFoundKey, path: string, payload: [ MismatchedKeyType, Set<string> ] }
+
 export interface Context {
-  errors: Set<string>
+  errors: Map<string, ErrorRecord>
   paths: string[]
-  missing: Map<string, { missing: Set<string>, exists: Set<string> }>
-  unkind: Set<string>
-  unargs: Set<string>
 }
 
 export interface NamedValue<T = string> {
