@@ -57,10 +57,10 @@ export const enum Target {
 export const enum MismatchedKeyType { LHS, RHS }
 
 export const enum ErrorType {
-  UnexpectedValueType,
-  NotFoundKey,
-  MismatchedKind,
-  MismatchedArguments
+  UnexpectedValueType = 'Unexpected type',
+  NotFoundKey = 'Not found key',
+  MismatchedKind = 'Mismatched kind',
+  MismatchedArguments = 'Mismatched arguments'
 }
 
 export type ErrorRecord =

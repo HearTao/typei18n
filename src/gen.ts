@@ -157,8 +157,8 @@ function printError(error: ErrorRecord, typeNodes: NamedValue<RecordTypeDescript
 
     case ErrorType.NotFoundKey: {
       const [ type, set ] = error.payload
-      const missing = MismatchedKeyType.RHS === type ? [...diffArray(names, set)].join(',') : [...set].join(',')
-      return i18n.t.errors.key_missing_in_path({ path: error.path, missing })
+      const missing = MismatchedKeyType.RHS === type ? [...diffArray(names, set)].join(',') : [...set].join(', ')
+      return i18n.t.errors.key_missing_in_path({ path: error.path, missing: `(${missing})` })
     }
 
     case ErrorType.MismatchedKind: {
@@ -170,7 +170,7 @@ function printError(error: ErrorRecord, typeNodes: NamedValue<RecordTypeDescript
         else arr.push(name)
         return acc
       }, new Map).forEach((names, kind) => {
-        out.push(`    - ${kind} (${names.join(', ')})`)
+        out.push(`  - ${kind} (${names.join(', ')})`)
       })
       return i18n.t.errors.type_of_path_is_unexpected({ path: error.path, types: '\n' + out.join('\n') })
     }
@@ -185,7 +185,7 @@ function printError(error: ErrorRecord, typeNodes: NamedValue<RecordTypeDescript
         else arr.push(name)
         return acc
       }, new Map).forEach((names, args) => {
-        out.push(`    - call({ ${args} }) (${names.join(', ')})`)
+        out.push(`  - call({ ${args} }) (${names.join(', ')})`)
       })
 
       return i18n.t.errors.args_is_different({ path: error.path, args: '\n' + out.join('\n') })
@@ -263,8 +263,12 @@ export function gen(
 
   if (context.errors.size) {
     const out: string[] = []
+    let index = 1
     context.errors.forEach(record => {
-      out.push(printError(record, typeNodes))
+      const title = index + '.Error: ' + record.type
+      const hr = '-'.repeat(process.stdout.columns ? process.stdout.columns - title.length : 40)
+      out.push(title + hr + '\n\n' + printError(record, typeNodes))
+      index++
     })
     throw new Error(
       '\n' +
