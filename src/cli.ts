@@ -41,20 +41,26 @@ function handler(_data?: string) {
     if (watch) {
       run(files, false)
       const cache = createCache(files)
-      console.log(cache)
       console.log(`Waiting for file change\n`)
-      chokidar(`./**/*.yaml`, { ignored: /(^|[\/\\])\../, cwd: input }).on(
-        'change',
-        file => {
+      chokidar(`./**/*.yaml`, { ignored: /(^|[\/\\])\../, cwd: input })
+        .on('change', file => {
           console.log(`${file} changed, processing...`)
-          cache.set(
-            path.basename(file, path.extname(file)), 
-            yaml.safeLoad(fs.readFileSync(path.join(input, file), 'utf-8'))
-          )
+          const fileName = path.basename(file, path.extname(file))
+          const content = fs.readFileSync(path.join(input, file), 'utf-8')
+          if('' === content.trim()) {
+            cache.set(fileName, yaml.safeLoad(content))
+          } else {
+            cache.delete(fileName)
+          }
           run(exportCache(cache), false)
           console.log(`Waiting for file change\n`)
-        }
-      )
+        })
+        .on('unlink', file => {
+          console.log(`${file} removed, processing...`)
+          cache.delete(path.basename(file, path.extname(file)))
+          run(exportCache(cache), false)
+          console.log(`Waiting for file change\n`)
+        })
     } else {
       run(files)
     }
