@@ -1,6 +1,6 @@
 import * as ts from 'typescript'
 
-import { YamlNode, RecordTypeDescriptor, Target, Context, NamedValue } from './types'
+import { YamlNode, RecordTypeDescriptor, Target, Context, NamedValue, CallTypeDescriptor } from './types'
 import {
   isStringType,
   isCallType,
@@ -107,13 +107,7 @@ function merge(
       const sourceArgs = value.body.filter(isParamArgType)
 
       if (!arrayEq(targetArgs, sourceArgs, x => x.name)) {
-        context.errors.add(
-          i18n.t.errors.args_is_different({
-            path: `${getCurrentPath(context)}.${key}`,
-            one: targetArgs.map(x => x.name).join(','),
-            two: sourceArgs.map(x => x.name).join(',')
-          })
-        )
+        context.unargs.add(`${getCurrentPath(context)}.${key}`)
         return
       }
     } else if (isRecordType(targetValue) && isRecordType(value)) {
@@ -185,7 +179,7 @@ export function gen(
   lazy?: boolean,
   defaultLanguage?: string
 ): [string, [string, string][]] | string {
-  const context: Context = { errors: new Set, paths: [], missing: new Map, unkind: new Set }
+  const context: Context = { errors: new Set, paths: [], missing: new Map, unkind: new Set, unargs: new Set }
 
   const names = new Set(files.map(({ name }) => name))
   const typeNodes: NamedValue<RecordTypeDescriptor>[] = files
@@ -212,6 +206,29 @@ export function gen(
     })
   }
 
+  if(context.unargs.size) {
+    context.unargs.forEach((_, path) => {
+      const out: string[] = []
+      
+      getPathNodes(typeNodes, path).reduce<Map<string, string[]>>((acc, { name, value }) => {
+        const args = (<CallTypeDescriptor>value).body.filter(isParamArgType).map(x => x.name).join(', ')
+        const arr = acc.get(args)
+        if(!arr) acc.set(args, [ name ])
+        else arr.push(name)
+        return acc
+      }, new Map).forEach((names, args) => {
+        out.push(`    - call({ ${args} }) (${names.join(', ')})`)
+      })
+
+      context.errors.add(
+        i18n.t.errors.args_is_different({
+          path,
+          args: '\n' + out.join('\n')
+        })
+      )
+    })
+  }
+
   if(context.unkind.size) {
     context.unkind.forEach((_, path) => {
       const out: string[] = []
@@ -223,7 +240,7 @@ export function gen(
         else arr.push(name)
         return acc
       }, new Map).forEach((names, kind) => {
-        out.push(`    - ${kind} (${names.join(',')})`)
+        out.push(`    - ${kind} (${names.join(', ')})`)
       })
 
       context.errors.add(
@@ -237,11 +254,11 @@ export function gen(
 
   
   if (context.errors.size) {
-    throw new Error(`
-Errors:
-
-${[...context.errors].map((msg, idx) => `${idx + 1}. ${msg}`).join('\n')}
-`)
+    throw new Error('\n' +
+      'Errors: \n\n' +
+      [...context.errors].map((msg, idx) => `${idx + 1}. ${msg}`).join('\n\n') + 
+      '\n'
+    )
   }
 
   const rootType = 'RootType'
