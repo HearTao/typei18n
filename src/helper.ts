@@ -980,7 +980,8 @@ export function genProviderExport(
 
 const argsReg = /{{\s([a-zA-Z0-9]*)\s}}/g
 export function matchCallBody(str: string): ArgType[] | null {
-  let result: ArgType[] = []
+  const LITERAL = Symbol('literal')
+  const result: Map<string | typeof LITERAL, ArgType> = new Map
   let match: RegExpExecArray | null = null
   let lastIndex = 0
 
@@ -989,12 +990,12 @@ export function matchCallBody(str: string): ArgType[] | null {
       const [full, text] = match
       const idx = match.index
       if (idx > lastIndex) {
-        result.push({
+        result.set(LITERAL, {
           kind: ArgKind.literal,
           value: str.substring(lastIndex, idx)
         })
       }
-      result.push({
+      result.set(text, {
         kind: ArgKind.param,
         name: text
       })
@@ -1004,14 +1005,14 @@ export function matchCallBody(str: string): ArgType[] | null {
     match = argsReg.exec(str)
   } while (match)
 
-  if (result.length) {
+  if (result.size) {
     if (lastIndex < str.length) {
-      result.push({
+      result.set(LITERAL, {
         kind: ArgKind.literal,
         value: str.substring(lastIndex)
       })
     }
-    return result
+    return [ ...result.values() ]
   }
   return null
 }
