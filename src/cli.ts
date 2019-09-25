@@ -47,7 +47,7 @@ function handler(_data?: string) {
           console.log(`${file} changed, processing...`)
           const fileName = path.basename(file, path.extname(file))
           const content = fs.readFileSync(path.join(input, file), 'utf-8')
-          if('' === content.trim()) {
+          if('' !== content.trim()) {
             cache.set(fileName, yaml.safeLoad(content))
           } else {
             cache.delete(fileName)
