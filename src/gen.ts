@@ -272,7 +272,7 @@ export function gen(
     })
     throw new Error(
       '\n' +
-      'Errors: \n\n' +
+      `Errors (${context.errors.size}): \n\n` +
       out.join('\n\n') + 
       '\n'
     )
